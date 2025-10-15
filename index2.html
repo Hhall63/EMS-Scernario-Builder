@@ -1366,11 +1366,17 @@ if (urgEl){ urgEl.checked = !!tx.urgent; urgEl.onchange = ()=>{ tx.urgent = !!ur
 const urgMsgEl = q('.urgent-msg');
 if (urgMsgEl){
   urgMsgEl.value = tx.urgentMsg || '';
-  urgMsgEl.addEventListener('focus', ()=>{ editingUrgent = true; });
-  // update the model as you type, but DO NOT save (prevents re-render)
-  urgMsgEl.addEventListener('input', ()=>{ tx.urgentMsg = urgMsgEl.value; });
-  // save once when you leave the box
-  urgMsgEl.addEventListener('blur',  ()=>{ editingUrgent = false; save(); });
+  const lock = () => { editingUrgent = true; };
+  urgMsgEl.addEventListener('mousedown', lock);
+  urgMsgEl.addEventListener('focus', lock);
+  urgMsgEl.addEventListener('input', (e)=>{
+    e.stopPropagation();            // block bubbling input listeners
+    tx.urgentMsg = urgMsgEl.value;  // update only the model
+  });
+  urgMsgEl.addEventListener('blur',  ()=>{
+    editingUrgent = false;
+    save();                         // single save after you leave the box
+  });
 }
 
 // Δ per second + Max
@@ -1732,10 +1738,7 @@ function applyInjects(){
 
 /* ---------------- Persistence + wiring ---------------- */
 function save(){
-    function save(){
-  // ⛔ Do not redraw or write while typing the urgent message
-  if (editingUrgent) return;
-  // ---- existing save() code continues here ----
+  if (editingUrgent) return;        // <-- do nothing while typing URGENT
   // gather form
   const mt=byId('meta-title'); if(mt) scenario.meta.title=mt.value;
   const ma=byId('meta-author'); if(ma) scenario.meta.author=ma.value;
@@ -1813,8 +1816,7 @@ function save(){
 }
 try{
   localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenarioForStorage()));
-  const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
-}catch(e){
+  }catch(e){
   console.warn('Autosave skipped (likely storage full):', e);
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
@@ -1967,7 +1969,6 @@ safeOn(byId('add-audio'),'click',()=>{
     const r=new FileReader();
     r.onload=()=>{ try{
       scenario=JSON.parse(r.result);
-      localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
       load();
     }catch{ alert('Invalid JSON'); } };
     r.readAsText(f);
