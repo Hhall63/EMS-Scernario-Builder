@@ -666,6 +666,7 @@ let scenario = {
 /* ---------------- Runtime state ---------------- */
 let currentAudioIdx = -1; // which audio button is currently playing (-1 = none)
 let running=false, interval=null, tLeft=0, elapsed=0;
+let editingUrgent = false;
 let audioLoop = false;
 let vitals={}, baseline={}, activeTx={}, decayTx={};
 let appliedInjects=[], firedInject=new Set();
@@ -1364,10 +1365,11 @@ if (urgEl){ urgEl.checked = !!tx.urgent; urgEl.onchange = ()=>{ tx.urgent = !!ur
 const urgMsgEl = q('.urgent-msg');
 if (urgMsgEl){
   urgMsgEl.value = tx.urgentMsg || '';
-  // Update the model live without re-rendering (keeps cursor)
+  urgMsgEl.addEventListener('focus', ()=>{ editingUrgent = true; });
+  // update the model as you type, but DO NOT save (prevents re-render)
   urgMsgEl.addEventListener('input', ()=>{ tx.urgentMsg = urgMsgEl.value; });
-  // Persist + re-render only when the field loses focus or user presses Enter
-  urgMsgEl.addEventListener('change', ()=>{ tx.urgentMsg = urgMsgEl.value; save(); });
+  // save once when you leave the box
+  urgMsgEl.addEventListener('blur',  ()=>{ editingUrgent = false; save(); });
 }
 
 // Δ per second + Max
@@ -1811,8 +1813,13 @@ try{
   console.warn('Autosave skipped (likely storage full):', e);
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
-  const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
-  drawInjects(); drawTreatments(); buildTxButtons(); renderAll();
+  localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
+drawInjects();
+if (!editingUrgent) { drawTreatments(); }   // don’t rebuild while typing
+buildTxButtons();
+renderAll();
+
 }
 function load(){
   const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
