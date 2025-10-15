@@ -1366,18 +1366,17 @@ if (urgEl){ urgEl.checked = !!tx.urgent; urgEl.onchange = ()=>{ tx.urgent = !!ur
 const urgMsgEl = q('.urgent-msg');
 if (urgMsgEl){
   urgMsgEl.value = tx.urgentMsg || '';
-  const lock = () => { editingUrgent = true; };
-  urgMsgEl.addEventListener('mousedown', lock);
-  urgMsgEl.addEventListener('focus', lock);
-  urgMsgEl.addEventListener('input', (e)=>{
-    e.stopPropagation();            // block bubbling input listeners
-    tx.urgentMsg = urgMsgEl.value;  // update only the model
+
+  urgMsgEl.addEventListener('focus', () => { editingUrgent = true; });
+  urgMsgEl.addEventListener('input', () => {
+    tx.urgentMsg = urgMsgEl.value;
   });
-  urgMsgEl.addEventListener('blur',  ()=>{
+  urgMsgEl.addEventListener('blur', () => {
     editingUrgent = false;
-    save();                         // single save after you leave the box
+    save();
   });
 }
+
 
 // Δ per second + Max
 ['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
