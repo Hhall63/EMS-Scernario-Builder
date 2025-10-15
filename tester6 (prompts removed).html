@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EMT Scenario Dashboard</title>
+<style>
+  :root{ --bg:#f6f7f9; --fg:#111; --card:#fff; --muted:#6b7280; --b:#e5e7eb; --bb:#eef2f7;
+         --primary:#2563eb; --green:#16a34a; --red:#dc2626; --amber:#f59e0b; }
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; margin:0; background:var(--bg); color:var(--fg)}
+  header{background:#1f2937;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between}
+  header .title{font-weight:700}
+  .wrap{display:grid;grid-template-columns:380px 1fr;gap:16px;padding:16px}
+  .panel{background:var(--card);border:1px solid var(--b);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.05);overflow:hidden}
+  .panel h3{margin:0;padding:10px 12px;border-bottom:1px solid var(--bb);font-size:16px}
+  .content{padding:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  button.btn{border:1px solid var(--b);background:#fafafa;border-radius:10px;padding:8px 10px;cursor:pointer}
+  button.primary{background:var(--primary);color:#fff;border-color:#1d4ed8}
+  button.success{background:var(--green);color:#fff;border-color:#12833b}
+  /* active treatment: black, bold text */
+  .btn.tx-on { color:#000 !important; font-weight:700; }
+  button.danger{background:var(--red);color:#fff;border-color:#b91c1c}
+ /* Badge chip */
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border:1px solid var(--b);
+  background:#f9fafb;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:12px;
+  color:var(--fg);
+}
+
+/* Compact vital editor inside a Treatment card */
+/* Compact vital editor: single-line rows */
+.vital-rows{
+  display:grid;
+  gap:8px;
+  margin-bottom:8px;
+}
+.vital-row{
+  display:grid;
+  grid-template-columns: 140px repeat(4, minmax(0,1fr)); /* Label | Δ/s | Target | Max | Min */
+  gap:8px;
+  align-items:center;
+}
+.vital-row.head{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:600;
+}
+.vital-row .vlabel{ font-weight:700; }
+.vital-help{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+
+
+/* audio cue rows in build */
+.audio-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-bottom:8px}
+.audio-row .btn{white-space:nowrap}
+.audio-name{font-size:12px;color:var(--muted)}
+
+
+  .switch{display:inline-flex;align-items:center;gap:6px}
+  textarea, input[type="text"], input[type="number"], select{width:100%;padding:8px;border-radius:10px;border:1px solid var(--b);background:#fff}
+  .kv{border:1px solid var(--b);border-radius:10px;padding:10px}
+ /* MONITOR COMPACT */
+ .monitor{
+    display:grid;
+    gap:8px;                          /* tighter gutters */
+    grid-template-columns:repeat(4,minmax(0,1fr));  /* more columns = less height */
+    align-items:start;
+ }
+ @media (min-width:1280px){
+  .monitor{ grid-template-columns:repeat(6,minmax(0,1fr)); }
+ }
+ @media (max-width:900px){
+  .monitor{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+ }
+ /* Force 6-up monitor all the time (stretch wide) */
+.monitor{ grid-template-columns:repeat(6,minmax(0,1fr)) }
+/* TREATMENTS FULL-WIDTH ROW */
+#p-tx-buttons.row.wide{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start;width:100%}
+#p-tx-buttons.row.wide .btn{flex:0 1 auto}
+ /* MONITOR COMPACT: smaller desc rows */
+.subdesc{font-size:11px;color:#374151;margin-top:2px;line-height:1.2}
+/* MONITOR COMPACT: denser cards and numbers */
+.kv.compact{padding:6px 8px}
+.kv.compact .v{font-size:20px;line-height:1.1;margin-top:2px}
+/* Base cards (non-compact) */
+.monitor .kv{padding:8px}                 /* was 10px globally */
+.monitor .kv > div:first-child{           /* small title like HR, RR */
+  font-size:14px;
+  margin-bottom:2px;
+}
+.monitor .kv .v{                          /* the big value line */
+  font-size:22px;                         /* smaller than default */
+  line-height:1.1;
+}
+
+  .muted{color:var(--muted);font-size:12px}
+  .divider{height:1px;background:var(--bb);margin:10px 0}
+  .log{height:120px;overflow:auto;background:#0b1020;color:#c7d2fe;border-radius:10px;padding:10px;font-family:ui-monospace,monospace}
+  .stickybar{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bb);padding:8px 10px;z-index:5}
+  /* timers with captions + wider spacing */
+  .timer-wrap{display:flex;flex-direction:column;align-items:center;min-width:160px}
+  .timer-caption{font-size:12px;color:#374151;margin-top:2px}
+  .stickybar.row{justify-content:center;gap:32px}          /* extra space between clocks */
+  /* make inject timer match main timer size */
+  #inject-counts .pill.inject-big{font-size:40px;padding:6px 12px;font-weight:700}
+  /* STICKY BAR CENTER + SIZING */
+    .stickybar.sticky-center{justify-content:center; gap:12px}
+    .stickybar .bigbtn{font-size:16px; padding:10px 14px}   /* slightly larger */
+    #inject-counts .pill.inject-big{font-size:40px; padding:6px 12px; font-weight:700} /* match main timer size */
+  /* HIDE ALS UI (BUILD + PLAY) */
+#als-badge, #p-als-badge{ display:none !important; }          /* badges */
+#flag-als-play, #flag-als-build{ display:none !important; }    /* checkboxes */
+#flag-als-play + span, #flag-als-build + span{ display:none !important; } /* their label text */
+    .als-on{background:#dcfce7;color:#065f46;border:1px solid #16a34a;padding:4px 8px;border-radius:999px}
+  .big-timer{font-family:ui-monospace,monospace;font-size:40px;letter-spacing:1px}
+  .hidden{display:none}
+  .pill{padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;border:1px solid var(--b)}
+  .stack{display:flex;flex-wrap:wrap;gap:6px}
+  .mini{font-size:11px;color:var(--muted)}
+  .help{font-size:12px;color:#374151}
+  .error{color:#b91c1c;font-size:12px}
+  /* Lung sounds header row + buttons */
+  .ls-head{
+    display:flex;
+    align-items:center;
+    gap:10px;          /* space between title and Stop/Loop */
+    margin-bottom:10px;/* <— a touch more space before the lung sound buttons */
+  }
+  .ls-head h3{ border:none; padding:0; margin:0; }
+
+  /* Single large inject pill in the PLAY bar */
+#inject-counts .pill.inject-big{font-size:28px;padding:10px 18px;font-weight:700}
+#inject-counts .pill.active{background:#fee2e2} /* red when active */
+
+/* Collapsible cards */
+.kv .hdr{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kv .body{margin-top:8px}
+/* Inline selector groups inside a Treatment card */
+.inline-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.inline-line .group-h{font-weight:700; min-width:64px}
+.inline-line label{display:flex;align-items:center;gap:6px;margin:0}
+.inline-line select{min-width:140px}
+.kv.collapsed .body{display:none}
+  /* Arrow toggle button for Treatments */
+.icon-btn{background:transparent;border:0;cursor:pointer;padding:4px 6px;font-size:16px;line-height:1}
+.icon-btn:focus{outline:2px solid var(--primary);outline-offset:2px}
+/* PLAY: text sizing and two-column SAMPLE + OPQRST with divider */
+.kv .hdr{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.kv .body{margin-top:8px}
+.kv.collapsed .body{display:none}
+.icon-btn{background:transparent;border:0;cursor:pointer;padding:4px 6px;font-size:16px;line-height:1}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* Left column spacing for Physical under AVPU */
+#p-physical{padding-top:4px}
+.two-col .right{border-left:1px solid #000;padding-left:12px}
+
+/* Slightly smaller SAMPLE to make room; black text, red initials */
+#p-sample{font-size:1.3em;color:#111}
+
+/* OPQRST matches SAMPLE */
+#p-opqrst{font-size:1.3em;color:#111}
+
+#p-sample strong,
+#p-opqrst strong{
+  color:var(--red);
+  font-weight:700;
+  font-size:1em !important;
+  display:inline-block;
+  width:2.1ch;       /* wider label block to prevent overlap */
+  margin-right:.25em;/* extra gap between red label and black text */
+}
+/* Slightly smaller SAMPLE to make room; black text, red initials */
+#p-sample{font-size:1.3em;color:#111}
+
+/* Physical bullets and readable size like AVPU block */
+#p-physical{font-size:16px;color:#111}
+#p-physical ul{margin:6px 0 0 18px;padding:0}
+#p-physical li{margin:2px 0}
+
+/* Flashing background for active treatment buttons */
+@keyframes tflash { 
+  0%,100% { background: var(--on, #16a34a); }
+  50%     { background: var(--off, #fafafa); }
+}
+/* COUNTDOWN WARNING FLASH */
+@keyframes warnFlash { 0%,100%{ background:transparent } 50%{ background:#fef3c7 } } /* amber */
+.flash-warn{ animation: warnFlash .8s linear infinite; border-color:#f59e0b !important; }
+.btn.tflash { animation: tflash .9s linear infinite; }
+/* Brand logo in header */
+header .title{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+#brand-logo{
+  height:28px;   /* adjust if needed */
+  width:auto;
+  display:block;
+}
+/* Screen-reader-only text */
+.sr-only{
+  position:absolute;
+  width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">© Redline Creations, LLC</div>
+
+  <div>
+    <span class="badge">Mode:</span>
+    <button id="mode-build" class="btn">Build</button>
+    <button id="mode-play" class="btn primary">Play</button>
+    <button id="export" class="btn">Export JSON</button>
+    <label id="import-label" class="badge" style="cursor:pointer" title="Click to select a file">
+      Import JSON
+      <input id="import" type="file" accept="application/json" style="display:none">
+    </label>
+    <span class="badge">Autosave: <span id="autosave">idle</span></span>
+  </div>
+</header>
+
+
+<!-- BUILD -->
+<div class="wrap" id="build">
+  <div class="panel">
+    <div class="stickybar row">
+  <span class="note-start">Click start when student enters scenario room and sees the patient</span>
+  <button id="start" class="btn success" style="font-size:15px">Start</button>
+  <button id="pause" class="btn" style="font-size:15px">Pause</button>
+  <button id="reset" class="btn danger" style="font-size:15px">Reset</button>
+
+  <div class="timer-wrap">
+    <div id="timer" class="big-timer">15:00</div>
+    <div class="timer-caption">Scenario Time Remaining</div>
+  </div>
+</div>
+    <div class="content">
+      <!-- Removed the left-side build Monitor preview as requested -->
+
+      <div class="divider"></div>
+      <h3>Treatments (preview)</h3>
+      <div id="tx-buttons" class="row"></div>
+
+      <div class="divider"></div>
+      <h3>SAMPLE & Physical (preview)</h3>
+      <div id="sample-preview" class="content muted"></div>
+
+      <div class="divider"></div>
+      <h3>Log</h3>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="content">
+      <h3>Meta</h3>
+      <div class="grid">
+        <label>Title <input id="meta-title" type="text"></label>
+        <label>Author <input id="meta-author" type="text"></label>
+      </div>
+
+      <div class="divider"></div>
+      <h3>Text</h3>
+      <div class="grid">
+        <label>Dispatch <textarea id="txt-dispatch" rows="2"></textarea></label>
+        <label>General Impression <textarea id="txt-gi" rows="2"></textarea></label>
+      </div>
+      <div class="grid">
+        <label>AVPU <input id="txt-avpu" type="text"></label>
+        <label>NOI/MOI <input id="txt-noi" type="text"></label>
+        <label>C-spine <input id="txt-cspine" type="text"></label>
+      </div>
+
+      
+      <div class="divider"></div>
+      <h3>SAMPLE History</h3>
+      <div class="grid">
+        <label>S (Symptoms) <textarea id="s-s" rows="2" placeholder="Chief complaint and associated symptoms"></textarea></label>
+        <label>A (Allergies) <textarea id="s-a" rows="2" placeholder="Drug, food, environmental"></textarea></label>
+      </div>
+      <div class="grid">
+        <label>M (Medications) <textarea id="s-m" rows="2" placeholder="Name, dose, schedule, compliance"></textarea></label>
+        <label>P (Pertinent history) <textarea id="s-p" rows="2" placeholder="Medical/surgical history, recent events"></textarea></label>
+      </div>
+      <div class="grid">
+        <label>L (Last oral intake) <textarea id="s-l" rows="2" placeholder="Food/fluids, time, quantity"></textarea></label>
+        <label>E (Events leading up) <textarea id="s-e" rows="2" placeholder="What happened, mechanism"></textarea></label>
+      </div>
+      <div class="grid">
+        <label>Physical Findings <textarea id="phys" rows="3" placeholder="Focused assessment notes"></textarea></label>
+      </div>
+<div class="divider"></div>
+      <div class="divider"></div>
+        <h3>OPQRST</h3>
+        <div class="grid">
+        <label>O (Onset)        <textarea id="o-o" rows="2" placeholder="When it started, sudden/gradual"></textarea></label>
+        <label>P (Provocation)  <textarea id="o-p" rows="2" placeholder="Better/worse with..."></textarea></label>
+        </div>
+        <div class="grid">
+        <label>Q (Quality)      <textarea id="o-q" rows="2" placeholder="Sharp, dull, pressure..."></textarea></label>
+        <label>R (Region/Rad.)  <textarea id="o-r" rows="2" placeholder="Where, does it travel"></textarea></label>
+        </div>
+        <div class="grid">
+        <label>S (Severity)     <textarea id="o-s" rows="2" placeholder="0–10 or descriptive"></textarea></label>
+        <label>T (Time)         <textarea id="o-t" rows="2" placeholder="Progression, duration"></textarea></label>
+        </div>
+
+    <div class="divider"></div>
+    <h3>Audio Cues</h3>
+    <div id="audio-list"></div>
+    <div class="row">
+    <button id="add-audio" class="btn">Add Audio Button</button>
+    </div>
+
+      <h3>Timing</h3>
+      <div class="grid">
+        <label>Countdown minutes <input id="min" type="number" min="1" value="15"></label>
+      </div>
+      <details open>
+        <summary>Injects</summary>
+        <div class="help">Time accepts <code>mm:ss</code>, <code>m:ss</code>, or seconds (e.g., <code>480</code>).</div>
+        <div id="inject-list"></div>
+        <div id="inj-error" class="error"></div>
+        <div class="row">
+          <label>Time <input id="inj-time" type="text" placeholder="12:30 or 480"></label>
+          <label>Name <input id="inj-name" type="text" placeholder="Airway obstruction"></label>
+          <button id="add-inject" class="btn">Add</button>
+          <button id="apply-injects" class="btn primary">Apply to current run</button>
+        </div>
+      </details>
+
+      <div class="divider"></div>
+      <h3>Vitals</h3>
+      <div class="three">
+        <label>HR <input id="v-hr" type="number" value="110"></label>
+        <label>RR <input id="v-rr" type="number" value="26"></label>
+        <label>SpO₂ <input id="v-spo2" type="number" step="0.1" value="88"></label>
+        <label>SBP <input id="v-sbp" type="number" value="98"></label>
+        <label>DBP <input id="v-dbp" type="number" value="62"></label>
+        <label>CBG <input id="v-cbg" type="number" value="120"></label>
+      </div>
+
+      <div class="grid" style="margin-top:10px">
+        <label>Pulse Rate <select id="v-hr-rate">
+          <option value="normal">normal</option>
+          <option value="tachycardic">tachycardic</option>
+          <option value="bradycardic">bradycardic</option>
+          <option value="absent">absent</option>
+        </select></label>
+        <label>Pulse Rhythm <select id="v-hr-rhythm">
+          <option value="regular">regular</option>
+          <option value="irregular">irregular</option>
+          <option value="absent">absent</option>
+        </select></label>
+        <label>Pulse Quality <select id="v-hr-quality">
+          <option value="normal">normal</option>
+          <option value="weak">weak</option>
+          <option value="thready">thready</option>
+          <option value="bounding">bounding</option>
+          <option value="absent">absent</option>
+        </select></label>
+      </div>
+
+      <div class="grid">
+        <label>Resp Rate <select id="v-rr-rate">
+          <option value="normal">normal</option>
+          <option value="tachypneic">tachypneic</option>
+          <option value="bradypneic">bradypneic</option>
+          <option value="absent">absent</option>
+        </select></label>
+        <label>Resp Rhythm <select id="v-rr-rhythm">
+          <option value="regular">regular</option>
+          <option value="irregular">irregular</option>
+          <option value="absent">absent</option>
+        </select></label>
+        <label>Resp Quality <select id="v-rr-quality">
+          <option value="normal">normal</option>
+          <option value="shallow">shallow</option>
+          <option value="labored">labored</option>
+          <option value="absent">absent</option>
+        </select></label>
+      </div>
+
+      <div class="grid">
+        <label>Skin Color <select id="v-skin-color">
+          <option value="normal">normal</option>
+          <option value="pink">pink</option>
+          <option value="pale">pale</option>
+          <option value="flushed">flushed</option>
+          <option value="cyanotic">cyanotic</option>
+          <option value="mottled">mottled</option>
+          <option value="jaundiced">jaundiced</option>
+        </select></label>
+        <label>Skin Temp <select id="v-skin-temp">
+          <option value="warm">warm</option>
+          <option value="hot">hot</option>
+          <option value="cool">cool</option>
+          <option value="cold">cold</option>
+        </select></label>
+        <label>Skin Moisture <select id="v-skin-moist">
+          <option value="dry">dry</option>
+          <option value="normal">normal</option>
+          <option value="moist">moist</option>
+          <option value="clammy">clammy</option>
+          <option value="diaphoretic">diaphoretic</option>
+        </select></label>
+      </div>
+
+      <div class="divider"></div>
+      <h3>Treatments</h3>
+      <div id="tx-list"></div>
+      <button id="add-tx" class="btn">Add Treatment</button>
+      <p class="muted">Max caps per vital supported. Off toggles decay toward baseline.</p>
+
+    </div>
+  </div>
+</div>
+
+<!-- PLAY -->
+<div class="wrap hidden" id="play">
+  <div class="panel" style="grid-column:1 / -1">
+<div class="stickybar row">
+  <span class="note-start">Click start when student enters scenario room and sees the patient</span>
+  <button id="p-start" class="btn success" style="font-size:15px">Start</button>
+  <button id="p-pause" class="btn" style="font-size:15px">Pause</button>
+  <button id="p-reset" class="btn danger" style="font-size:15px">Reset</button>
+
+  <div class="timer-wrap">
+    <div id="p-timer" class="big-timer">15:00</div>
+    <div class="timer-caption">Scenario Time Remaining</div>
+  </div>
+
+  <div class="timer-wrap">
+    <div id="inject-counts" class="stack"></div>
+    <div class="timer-caption">Time To Inject</div>
+  </div>
+</div>
+    <div class="content">
+      <div class="grid">
+        <div>
+          <h3>Dispatch</h3>
+          <div id="p-dispatch" class="content"></div>
+        </div>
+        <div>
+          <h3>General Impression</h3>
+          <div id="p-gi" class="content"></div>
+        </div>
+      </div>
+
+     <div class="divider"></div>
+
+<!-- AVPU + Physical (left) and SAMPLE/OPQRST (right) -->
+<div class="grid">
+  <div>
+    <h3>AVPU / NOI-MOI / C-spine</h3>
+    <div id="p-ancillary" class="content"></div>
+
+    <h3>Physical Exam Findings</h3>
+    <div id="p-physical" class="content"></div>
+  </div>
+
+  <div>
+    <h3>SAMPLE & OPQRST</h3>
+    <div class="content">
+      <div class="two-col">
+        <div id="p-sample" class="col left"></div>
+        <div id="p-opqrst" class="col right"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="kv">
+  <div class="ls-head">
+    <h3>Lung Sound Controls</h3>
+    <button id="p-audio-stop" class="btn">Stop</button>
+    <button id="p-audio-loop" class="btn">Loop: Off</button>
+  </div>
+  <div id="p-audio-buttons" class="row"></div>
+  <audio id="p-audio" preload="auto" crossorigin="anonymous"></audio>
+</div>
+
+<h3>Monitor</h3>
+<div class="monitor">
+  <div class="kv"><div>HR</div><div class="v" id="p-hr">--</div><div id="p-hr-desc" class="subdesc"></div></div>
+  <div class="kv"><div>RR</div><div class="v" id="p-rr">--</div><div id="p-rr-desc" class="subdesc"></div></div>
+  <div class="kv compact"><div>SpO₂</div><div class="v" id="p-spo2">--</div></div>
+  <div class="kv compact"><div>B/P</div><div class="v" id="p-bp">--/--</div></div>
+  <div class="kv compact"><div>CBG</div><div class="v" id="p-cbg">--</div></div>
+  <div class="kv compact"><div>Skin</div><div class="v" id="p-skin">--</div></div>
+</div>
+
+<h3>Treatments</h3>
+<div id="p-tx-buttons" class="row wide"></div>
+
+<script>
+"use strict";
+
+/* ---------------- Utilities ---------------- */
+const byId = (id) => document.getElementById(id);
+const tone = (f=880,m=500)=>{try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type="sine";o.frequency.value=f;g.gain.value=.05;o.start();setTimeout(()=>{o.stop();c.close()},m)}catch{}};
+const fmt = (s) => {s=Math.max(0,s|0);const m=String(Math.floor(s/60)).padStart(2,"0"),n=String(s%60).padStart(2,"0");return m+":"+n};
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+function parseTimeFlexible(s){
+  if (s == null) return -1;
+  s = String(s).trim();
+  if (s === "") return -1;
+  if (/^\d+$/.test(s)) return parseInt(s,10);
+  const m = s.match(/^(\d{1,3})\s*:\s*([0-5]?\d)$/);
+  if (!m) return -1;
+  return parseInt(m[1],10)*60 + parseInt(m[2],10);
+}
+function safeOn(el, evt, fn){ if (el) el.addEventListener(evt, fn); }
+
+function log(msg){
+  const e = byId("log");
+  if (e){ e.textContent += msg + "\n"; e.scrollTop = e.scrollHeight; }
+}
+
+function readFileAsDataURL(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(r.result);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function getAudioSrc(a){ return (a && (a.data || a.url)) || ''; }
+
+/* ---------------- Scenario model ---------------- */
+let scenario = {
+  meta:{title:"Scenario name",version:1,author:""},
+  text:{dispatch:"",gi:"",avpu:"",noi:"",cspine:""},
+  flags:{als:false},
+  timing:{minutes:15},
+  injects:[], // {t:seconds,name}
+  vitals:{
+    hr:110,rr:26,spo2:88,sbp:98,dbp:62,cbg:120,
+    // new skin + descriptors
+    skinColor:"normal", skinTemp:"warm", skinMoist:"dry",
+    hrRate:"normal", hrRhythm:"regular", hrQuality:"normal",
+    rrRate:"normal", rrRhythm:"regular", rrQuality:"normal"
+  },
+  sample:{s:"",a:"",m:"",p:"",l:"",e:"",phys:""},
+  opqrst:{o:"",p:"",q:"",r:"",s:"",t:""},
+  audios:[],  // [{id,label,url}]
+  treatments:[], // {id,label,mode,eff{},cap{}}
+  prompts:[] // {type:'time'|'rule', ..., flashColor, beep, _activeStart}
+};
+
+/* ---------------- Runtime state ---------------- */
+let currentAudioIdx = -1; // which audio button is currently playing (-1 = none)
+let running=false, interval=null, tLeft=0, elapsed=0;
+let audioLoop = false;
+let vitals={}, baseline={}, activeTx={}, decayTx={};
+let appliedInjects=[], firedInject=new Set();
+let triggeredOnce = new Set(); // remembers which injects already scheduled their triggers
+let injectAutoOff = []; // [{txId, endT, injKey}]
+// Loud single beep used at inject fire
+function blast(f=1000,m=700){
+  try{
+    const C=new (window.AudioContext||window.webkitAudioContext)();
+    const o=C.createOscillator(), g=C.createGain();
+    o.connect(g); g.connect(C.destination);
+    o.type="square"; o.frequency.value=f; g.gain.value=.25;
+    o.start(); setTimeout(()=>{o.stop(); C.close()}, m);
+  }catch{}
+}
+
+// Parse "id:delay,id2:delay" where delay can be "90" or "1:30"
+function parseTriggers(str){
+  if(!str) return [];
+  return String(str).split(',').map(s=>s.trim()).filter(Boolean).map(s=>{
+    const idx=s.lastIndexOf(':');
+    const id = idx>=0 ? s.slice(0,idx).trim() : s.trim();
+    const raw = idx>=0 ? s.slice(idx+1).trim() : "0";
+    const d = parseTimeFlexible(raw);
+    return {id, delay: d>=0 ? d : 0};
+  });
+}
+function injKey(inj){ return (inj.id||inj.name||'inj')+'@'+inj.t; }
+
+function scheduleTriggersOnce(inj, now){
+  const key = injKey(inj);
+  if (triggeredOnce.has(key)) return;
+  triggeredOnce.add(key);
+  
+  // 1) explicit triggers (id:delay) win
+  if (Array.isArray(inj.triggers) && inj.triggers.length){
+    inj.triggers.forEach(tr=>{
+      const base=(scenario.injects||[]).find(x=>x.id===tr.id);
+      if (base){
+        // remove future duplicates of the same id so chain takes over
+        appliedInjects = appliedInjects.filter(x => !(x.id===base.id && x.t>now));
+        appliedInjects.push({...base, t: now + (+tr.delay||0)});
+      }
+    });
+    appliedInjects.sort((a,b)=>a.t-b.t);   // <-- add here
+    return;
+  }
+
+  // 2) fallback: next inject by editor order, starts immediately
+  const order = (scenario.injects||[]).map(j=>j.id);
+  const i = order.indexOf(inj.id);
+  if (i>=0 && i<order.length-1){
+    const nextBase = (scenario.injects||[])[i+1];
+    if (nextBase){
+      appliedInjects = appliedInjects.filter(x => !(x.id===nextBase.id && x.t>now));
+      appliedInjects.push({...nextBase, t: now}); // countdown starts now
+      appliedInjects.sort((a,b)=>a.t-b.t);        // <-- and add here
+    }
+  }
+}
+function activateTxFromInject(inj, now){
+  if (!inj || !Array.isArray(inj.txOn) || !inj.txOn.length) return;
+  const endT = now + Math.max(0, +inj.dur || 0);
+  const key = injKey(inj);
+
+  inj.txOn.forEach(id => {
+    if (!id) return;
+    activeTx[id] = activeTx[id] || { on:false, done:false };
+    // turn on now
+    activeTx[id].on = true;
+    activeTx[id].done = false;
+    // remember to turn off when inject ends (only if it has a duration)
+    if ((+inj.dur||0) > 0){
+      injectAutoOff.push({ txId:id, endT, injKey:key });
+    }
+  });
+  renderAll();
+}
+function applyInjectAutoOff(now){
+  // turn off and start decay at inject end
+  injectAutoOff = injectAutoOff.filter(rec => {
+    if (now >= rec.endT){
+      if (activeTx[rec.txId]){
+        activeTx[rec.txId].on = false;
+        decayTx[rec.txId] = true; // let vitals drift back
+      }
+      return false; // drop this record
+    }
+    return true;
+  });
+}
+
+function startNextInject(fromId){
+  const order = (scenario.injects||[]).map(j=>j.id);
+  const i = order.indexOf(fromId);
+  if (i >= 0 && i < order.length - 1){
+    const nextBase = (scenario.injects||[])[i+1];
+    // remove future duplicates of the same id so manual chain takes over
+    appliedInjects = appliedInjects.filter(x => !(x.id === nextBase.id && x.t > elapsed));
+    appliedInjects.push({...nextBase, t: elapsed}); // start countdown now
+    appliedInjects.sort((a,b)=>a.t-b.t);
+    renderInjects();
+    log(`Manually started next inject: ${nextBase.name||nextBase.id}`);
+  }
+}
+
+/* ---------------- Engine ---------------- */
+function resetRun(){
+  running=false; if(interval){ clearInterval(interval); interval=null; }
+  tLeft=(scenario.timing.minutes||15)*60; elapsed=0;
+  vitals={...scenario.vitals}; baseline={...scenario.vitals};
+  activeTx={}; decayTx={};
+  appliedInjects=[...(scenario.injects||[])].sort((a,b)=>a.t-b.t);
+  firedInject.clear();
+  triggeredOnce.clear();
+renderAll();
+}
+function start(){ if (running) return; running=true; interval=setInterval(tick,1000); }
+function pause(){ running=false; if(interval){ clearInterval(interval); interval=null; } }
+function tick(){
+  if (tLeft<=0){ pause(); endBell(); return; }
+  tLeft -= 1; elapsed += 1;
+  // countdown warning at ≤ 2:00
+  const playBadge = byId('p-timer');                 // this span IS the badge on PLAY
+  const buildBadge = byId('timer')?.parentElement;   // timer's enclosing badge on BUILD
+  const warn = tLeft <= 120;
+  if (playBadge)  playBadge.classList.toggle('flash-warn', warn);
+  if (buildBadge) buildBadge.classList.toggle('flash-warn', warn);
+  applyEffectsPerSecond();
+  applyInjectAutoOff(elapsed);
+  renderAll();
+}
+function endBell(){ tone(660,400); setTimeout(()=>tone(880,400),450); setTimeout(()=>tone(660,400),900); }
+
+function enforceCaps(){
+  const keys=['hr','rr','spo2','sbp','dbp','cbg'];
+  const up={}, down={}, minFloor={};
+  for (const tx of scenario.treatments){
+    const st=activeTx[tx.id]; if(!st||!st.on) continue;
+    const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
+    for (const k of keys){
+      const d=+eff[k]||0;
+      if (cap[k]!=null){
+        if (d>0) up[k]=up[k]==null?cap[k]:Math.min(up[k],cap[k]);
+        if (d<0) down[k]=down[k]==null?cap[k]:Math.max(down[k],cap[k]);
+      }
+      if (min[k]!=null){
+        minFloor[k]=minFloor[k]==null?min[k]:Math.max(minFloor[k],min[k]);
+      }
+    }
+  }
+  Object.keys(up).forEach(k=>{ vitals[k]=Math.min(vitals[k], up[k]); });
+  Object.keys(down).forEach(k=>{ vitals[k]=Math.max(vitals[k], down[k]); });
+  Object.keys(minFloor).forEach(k=>{ vitals[k]=Math.max(vitals[k], minFloor[k]); });
+}
+
+function applyEffectsPerSecond(){
+  // small random walk on all vitals shown
+  const j=(v,m)=> v + (Math.random()*2-1)*m;
+  vitals.hr   = clamp(j(vitals.hr,.03),   0,190);
+  vitals.rr   = clamp(j(vitals.rr,.02),   0,50);
+  vitals.spo2 = clamp(j(vitals.spo2,.02), 0,100);
+  vitals.sbp  = clamp(j(vitals.sbp,.02),  0,200);
+  vitals.dbp  = clamp(j(vitals.dbp,.02),  0,130);
+  vitals.cbg  = clamp((vitals.cbg??scenario.vitals.cbg),  0,600); // ensure defined
+
+  const vitKeys = ['hr','rr','spo2','sbp','dbp','cbg'];
+
+  // active treatments sorted by priority desc
+  const activeList = (scenario.treatments||[])
+    .filter(tx => activeTx[tx.id]?.on)
+    .sort((a,b)=>(+b.priority||0)-(+a.priority||0));
+
+  // accumulate per-vital deltas
+  const delta = Object.fromEntries(vitKeys.map(k=>[k,0]));
+  for (const tx of activeList){
+    const eff = tx.eff || {};
+    const st  = activeTx[tx.id];
+    if (tx.mode==='oneShot' && st && !st.done){
+      for (const k of vitKeys){ const d=+eff[k]||0; if (d) delta[k]+=d*5; }
+      st.done=true; st.on=false;
+    } else if (tx.mode==='toggle'){
+      for (const k of vitKeys){ const d=+eff[k]||0; if (d) delta[k]+=d; }
+    }
+  }
+  for (const k of vitKeys) vitals[k] += delta[k];
+
+  // hard per-vital override holder = first override seen (highest priority due to sort)
+  const ovrByVital={};
+  for (const tx of activeList){
+    if (!tx.override) continue;
+    for (const k of vitKeys){
+      if (ovrByVital[k]) continue;
+      if ((tx.min&&tx.min[k]!=null) || (tx.cap&&tx.cap[k]!=null)) ovrByVital[k]=tx;
+    }
+  }
+  for (const k of vitKeys){
+    const t=ovrByVital[k]; if(!t) continue;
+    const mn=t.min?.[k]; const mx=t.cap?.[k];
+    if (mn!=null && vitals[k]<mn) vitals[k]=mn;
+    if (mx!=null && vitals[k]>mx) vitals[k]=mx;
+  }
+
+  // merge soft caps and mins from all ON treatments
+  const up={}, down={}, floor={};
+  for (const tx of activeList){
+    const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
+    for (const k of vitKeys){
+      const d=+eff[k]||0;
+      if (cap[k]!=null){
+        if (d>0) up[k]   = up[k]==null   ? cap[k] : Math.min(up[k],cap[k]);
+        if (d<0) down[k] = down[k]==null ? cap[k] : Math.max(down[k],cap[k]);
+      }
+      if (min[k]!=null) floor[k]=floor[k]==null?min[k]:Math.max(floor[k],min[k]);
+    }
+  }
+  for (const k of vitKeys){
+    if (up[k]!=null)   vitals[k]=Math.min(vitals[k], up[k]);
+    if (down[k]!=null) vitals[k]=Math.max(vitals[k], down[k]);
+    if (floor[k]!=null) vitals[k]=Math.max(vitals[k], floor[k]);
+  }
+
+  // descriptor + skin from any ON treatment, else baseline
+  const descKeys=['hrRate','hrRhythm','hrQuality','rrRate','rrRhythm','rrQuality','skinColor','skinTemp','skinMoist'];
+  const desc={}; descKeys.forEach(k=>desc[k]=baseline[k]);
+  for (const tx of (scenario.treatments||[])){
+    const st=activeTx[tx.id]; if(!st||!st.on) continue;
+    const set=tx.set||{};
+    for (const k of descKeys){ if (set[k]!=null) desc[k]=set[k]; }
+  }
+  for (const k of descKeys) scenario.vitals[k]=desc[k];
+}
+
+/* ---------------- Render ---------------- */
+function renderInjects(){
+  const host = byId('inject-counts'); if (!host) return; host.innerHTML = '';
+  const now = elapsed;
+
+  // keep list sorted
+  appliedInjects = [...appliedInjects].sort((a,b)=>a.t-b.t);
+
+  // fire zero-duration injects once when their time is reached
+  for (const inj of appliedInjects){
+    const dur = +inj.dur || 0;
+    const fireT = (+inj.t) | 0;
+    if (dur === 0 && now >= fireT && !firedInject.has(injKey(inj))){
+      firedInject.add(injKey(inj));
+      blast(1000,700);
+      scheduleTriggersOnce(inj, now);
+      activateTxFromInject(inj, now);
+    }
+  }
+
+  // find current active inject (has duration and is within its window)
+  let active = null;
+  for (const inj of appliedInjects){
+    const dur = +inj.dur || 0; if (!dur) continue;
+    const fireT = (+inj.t) | 0, endT = fireT + dur;
+    if (now >= fireT && now <= endT){
+      if (!active || fireT > ((+active?.t) | 0)) active = inj;
+    }
+  }
+
+  // render active pill (flash red, countdown, beep + chain once)
+  if (active){
+    const key = injKey(active);
+    if (!firedInject.has(key)){
+      firedInject.add(key);
+      blast(1000,700);
+      scheduleTriggersOnce(active, now);
+      activateTxFromInject(active, now);
+    }
+    const left = (active.t + (+active.dur || 0)) - now;
+    const pill = document.createElement('span');
+    pill.className = 'pill inject-big active pflash';
+    pill.style.setProperty('--pulse-color','#fee2e2');
+    if (active.bg) pill.style.background = active.bg;
+    pill.textContent = `${active.name} ${fmt(Math.max(0,left))}`;
+    host.appendChild(pill);
+    return;
+  }
+
+  // otherwise show the single next upcoming inject
+  const next = appliedInjects.find(inj => inj.t > now);
+  if (next){
+    const remain = next.t - now;
+    const pill = document.createElement('span');
+    pill.className = 'pill inject-big';
+    if (next.bg) pill.style.background = next.bg;
+    pill.textContent = `Next: ${next.name} in ${fmt(remain)}`;
+    host.appendChild(pill);
+  }
+} // <-- CRITICAL: close the function
+
+function beep(count=1){
+  const seq=[880,880,880].slice(0,count);
+  let t=0;
+  seq.forEach(f=>{ setTimeout(()=>tone(f,220), t); t+=350; });
+}
+
+function renderStatic(){
+  const set=(id,val)=>{ const el=byId(id); if(el) el.textContent=val; };
+  set('timer', fmt(tLeft)); set('p-timer', fmt(tLeft));
+  set('p-hr',Math.round(vitals.hr)); set('p-rr',Math.round(vitals.rr));
+  set('p-spo2',vitals.spo2.toFixed(1)); set('p-bp',Math.round(vitals.sbp)+"/"+Math.round(vitals.dbp));
+  set('p-cbg',Math.round(vitals.cbg));
+  const hrDesc = `Rate: ${scenario.vitals.hrRate||'normal'} | Rhythm: ${scenario.vitals.hrRhythm||'regular'} | Quality: ${scenario.vitals.hrQuality||'normal'}`;
+  const rrDesc = `Rate: ${scenario.vitals.rrRate||'normal'} | Rhythm: ${scenario.vitals.rrRhythm||'regular'} | Quality: ${scenario.vitals.rrQuality||'normal'}`;
+  const hrD=byId('p-hr-desc'); if(hrD) hrD.textContent=hrDesc;
+  const rrD=byId('p-rr-desc'); if(rrD) rrD.textContent=rrDesc;
+ 
+// SAMPLE block
+if (byId('p-sample')){
+  const s=scenario.sample;
+  byId('p-sample').innerHTML =
+    `<div><strong>S:</strong> ${s.s||''}</div>
+     <div><strong>A:</strong> ${s.a||''}</div>
+     <div><strong>M:</strong> ${s.m||''}</div>
+     <div><strong>P:</strong> ${s.p||''}</div>
+     <div><strong>L:</strong> ${s.l||''}</div>
+     <div><strong>E:</strong> ${s.e||''}</div>`;
+}
+// OPQRST block
+if (byId('p-opqrst')){
+  const o=scenario.opqrst||{};
+  byId('p-opqrst').innerHTML =
+    `<div><strong>O:</strong> ${o.o||''}</div>
+     <div><strong>P:</strong> ${o.p||''}</div>
+     <div><strong>Q:</strong> ${o.q||''}</div>
+     <div><strong>R:</strong> ${o.r||''}</div>
+     <div><strong>S:</strong> ${o.s||''}</div>
+     <div><strong>T:</strong> ${o.t||''}</div>`;
+}
+// Physical: bullet points under the AVPU block
+const physEl = byId('p-physical');
+if (physEl){
+  const raw = scenario.sample.phys || '';
+  const items = raw
+    .split(/\n+|[.;]\s+/)   // split on new lines or sentence-ish breaks
+    .map(s => s.trim())
+    .filter(Boolean);
+  physEl.innerHTML = items.length
+    ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>`
+    : '—';
+  }
+
+  const pd=byId('p-dispatch'), pg=byId('p-gi'), pa=byId('p-ancillary');
+  if (pd) pd.textContent=scenario.text.dispatch||'';
+  if (pg) pg.textContent=scenario.text.gi||'';
+  if (pa) pa.innerHTML = `<div><strong>AVPU:</strong> ${scenario.text.avpu||''}</div>
+    <div><strong>NOI/MOI:</strong> ${scenario.text.noi||''}</div>
+    <div><strong>C-spine:</strong> ${scenario.text.cspine||''}</div>`;
+
+  const skinEl=byId('p-skin');
+  if (skinEl){
+    skinEl.textContent = `${scenario.vitals.skinColor||'--'} / ${scenario.vitals.skinTemp||'--'} / ${scenario.vitals.skinMoist||'--'}`;
+  }
+
+  const alsA=byId('als-badge'), alsP=byId('p-als-badge');
+  if (alsA) alsA.classList.toggle('hidden', !scenario.flags.als);
+  if (alsP) alsP.classList.toggle('hidden', !scenario.flags.als);
+  const cb=byId('flag-als-build'), cp=byId('flag-als-play');
+  if (cb) cb.checked=!!scenario.flags.als;
+  if (cp) cp.checked=!!scenario.flags.als;
+
+  // Rebuild audio buttons, then sync their visual state (playing/idle)
+  renderAudioButtons();
+  updateAudioButtonStates();
+}
+function renderAll(){ renderStatic(); renderInjects(); }
+
+/* ---------------- UI builders ---------------- */
+function buildTxButtons(){
+  function mount(id){
+    const host = byId(id);
+    if (!host) return;
+    host.innerHTML = '';
+
+    (scenario.treatments || []).forEach(tx => {
+      const b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = tx.label || tx.id;
+
+      const getOn  = () => (tx.bgOn || tx.bg || '');
+      const getOff = () => (tx.bg   || '');
+
+      // vars for flash animation
+      b.style.setProperty('--on',  getOn());
+      b.style.setProperty('--off', getOff());
+
+      // initial state
+      const isOnInit = !!(activeTx[tx.id] && activeTx[tx.id].on);
+      b.classList.toggle('success', isOnInit);
+      b.classList.toggle('tx-on',   isOnInit);
+      if (isOnInit && tx.flashOn){
+        b.classList.add('tflash');
+        b.style.background = '';               // animation controls bg
+      } else {
+        b.classList.remove('tflash');
+        b.style.background = isOnInit ? getOn() : getOff();
+      }
+
+      // click -> toggle state + visuals
+      b.addEventListener('click', () => {
+        activeTx[tx.id] = activeTx[tx.id] || { on:false, done:false };
+        if (tx.mode === 'toggle'){
+          activeTx[tx.id].on = !activeTx[tx.id].on;
+          if (!activeTx[tx.id].on) decayTx[tx.id] = true;
+        } else {
+          activeTx[tx.id].on = true;
+          activeTx[tx.id].done = false;
+        }
+
+        // refresh vars in case colors changed
+        b.style.setProperty('--on',  getOn());
+        b.style.setProperty('--off', getOff());
+
+        const isOn = !!activeTx[tx.id].on;
+        b.classList.toggle('success', isOn);
+        b.classList.toggle('tx-on',   isOn);
+
+        if (isOn && tx.flashOn){
+          b.classList.add('tflash');
+          b.style.background = '';
+        } else {
+          b.classList.remove('tflash');        // stop flashing when OFF
+          b.style.background = isOn ? getOn() : getOff();
+        }
+
+        renderAll();
+      });
+
+      host.appendChild(b);
+    });
+  }
+
+  mount('tx-buttons');
+  mount('p-tx-buttons');
+}
+
+
+function drawTreatments(){
+  const host=byId('tx-list'); if(!host) return; host.innerHTML='';
+  (scenario.treatments||[]).forEach((tx,i)=>{
+    const box=document.createElement('div');
+    box.className='kv';
+    if (tx._collapsed) box.classList.add('collapsed');
+
+    box.innerHTML=`
+      <div class="row hdr">
+        <button class="icon-btn tgl" type="button" aria-label="Toggle details" aria-expanded="${!tx._collapsed ? 'true' : 'false'}">${tx._collapsed ? '►' : '▼'}</button>
+        <label style="flex:2">Label <input class="label" value="${tx.label||''}"></label>
+        <label style="flex:1">ID <input class="id" value="${tx.id||''}"></label>
+        <label style="flex:1">Mode <select class="mode">
+          <option value="toggle" ${tx.mode==='toggle'?'selected':''}>toggle</option>
+          <option value="oneShot" ${tx.mode==='oneShot'?'selected':''}>oneShot</option></select></label>
+        <label style="flex:0" title="Background color when OFF">
+            BG <input class="bg" type="color" value="${tx.bg || '#fafafa'}"
+                style="width:46px;padding:0;border:0;background:transparent">
+        </label>
+        <label style="flex:0" title="Background color when ON">
+            BG On <input class="bg-on" type="color" value="${tx.bgOn || tx.bg || '#c7f7c7'}"
+               style="width:60px;padding:0;border:0;background:transparent">
+        </label>
+        <label style="flex:0" title="Flash between BG On and BG while ON">
+          Flash <input class="flash-on" type="checkbox" ${tx.flashOn ? 'checked' : ''}>
+        </label>
+        <label style="width:90px" title="Higher runs first">
+            Priority <input class="prio" type="number" value="${tx.priority??0}">
+        </label>
+        <label style="width:110px" title="If set, this treatment’s per-vital deltas override lower priority deltas">
+            Override <input class="ovr" type="checkbox" ${tx.override?'checked':''}>
+        </label>
+
+        <button class="btn danger del" type="button">Delete</button>
+      </div>
+
+      <div class="body">
+ <div class="vital-rows">
+  <div class="vital-row head">
+    <div></div><div>Δ per second</div><div>Target</div><div>Max (cap)</div><div>Min (floor)</div>
+  </div>
+
+  <div class="vital-row">
+    <div class="vlabel">HR</div>
+    <input class="e-hr"  type="number" step="0.01" value="${tx.eff?.hr||0}">
+    <input class="t-hr"  type="number" step="0.1"  value="">
+    <input class="c-hr"  type="number" step="0.1"  value="${tx.cap?.hr??''}"  placeholder="none">
+    <input class="m-hr"  type="number" step="0.1"  value="${tx.min?.hr??''}"  placeholder="none">
+  </div>
+
+  <div class="vital-row">
+    <div class="vlabel">RR</div>
+    <input class="e-rr"  type="number" step="0.01" value="${tx.eff?.rr||0}">
+    <input class="t-rr"  type="number" step="0.1"  value="">
+    <input class="c-rr"  type="number" step="0.1"  value="${tx.cap?.rr??''}"  placeholder="none">
+    <input class="m-rr"  type="number" step="0.1"  value="${tx.min?.rr??''}"  placeholder="none">
+  </div>
+
+  <div class="vital-row">
+    <div class="vlabel">SpO₂</div>
+    <input class="e-spo2"  type="number" step="0.01" value="${tx.eff?.spo2||0}">
+    <input class="t-spo2"  type="number" step="0.1"  value="">
+    <input class="c-spo2"  type="number" step="0.1"  value="${tx.cap?.spo2??''}"  placeholder="none">
+    <input class="m-spo2"  type="number" step="0.1"  value="${tx.min?.spo2??''}"  placeholder="none">
+  </div>
+
+  <div class="vital-row">
+    <div class="vlabel">SBP</div>
+    <input class="e-sbp"  type="number" step="0.01" value="${tx.eff?.sbp||0}">
+    <input class="t-sbp"  type="number" step="0.1"  value="">
+    <input class="c-sbp"  type="number" step="0.1"  value="${tx.cap?.sbp??''}"  placeholder="none">
+    <input class="m-sbp"  type="number" step="0.1"  value="${tx.min?.sbp??''}"  placeholder="none">
+  </div>
+
+  <div class="vital-row">
+    <div class="vlabel">DBP</div>
+    <input class="e-dbp"  type="number" step="0.01" value="${tx.eff?.dbp||0}">
+    <input class="t-dbp"  type="number" step="0.1"  value="">
+    <input class="c-dbp"  type="number" step="0.1"  value="${tx.cap?.dbp??''}"  placeholder="none">
+    <input class="m-dbp"  type="number" step="0.1"  value="${tx.min?.dbp??''}"  placeholder="none">
+  </div>
+
+  <div class="vital-row">
+    <div class="vlabel">CBG</div>
+    <input class="e-cbg"  type="number" step="0.01" value="${tx.eff?.cbg||0}">
+    <input class="t-cbg"  type="number" step="0.1"  value="">
+    <input class="c-cbg"  type="number" step="0.1"  value="${tx.cap?.cbg??''}"  placeholder="none">
+    <input class="m-cbg"  type="number" step="0.1"  value="${tx.min?.cbg??''}"  placeholder="none">
+  </div>
+</div>
+<div class="vital-help">
+  Tip: <strong>Target</strong> pins a vital by setting Min = Max = Target. Leave Min/Max blank for “no limit”.
+</div>
+
+        <div class="divider"></div>
+
+<div class="inline-line">
+  <span class="group-h">Pulse</span>
+  <label>Rate
+    <select class="set-hr-rate">
+      <option value="">(no change)</option>
+      <option value="normal">normal</option>
+      <option value="tachycardic">tachycardic</option>
+      <option value="bradycardic">bradycardic</option>
+      <option value="absent">absent</option>
+    </select>
+  </label>
+  <label>Rhythm
+    <select class="set-hr-rhythm">
+      <option value="">(no change)</option>
+      <option value="regular">regular</option>
+      <option value="irregular">irregular</option>
+      <option value="absent">absent</option>
+    </select>
+  </label>
+  <label>Quality
+    <select class="set-hr-quality">
+      <option value="">(no change)</option>
+      <option value="normal">normal</option>
+      <option value="weak">weak</option>
+      <option value="thready">thready</option>
+      <option value="bounding">bounding</option>
+      <option value="absent">absent</option>
+    </select>
+  </label>
+</div>
+
+<div class="inline-line">
+  <span class="group-h">Resp</span>
+  <label>Rate
+    <select class="set-rr-rate">
+      <option value="">(no change)</option>
+      <option value="normal">normal</option>
+      <option value="tachypneic">tachypneic</option>
+      <option value="bradypneic">bradypneic</option>
+      <option value="absent">absent</option>
+    </select>
+  </label>
+  <label>Rhythm
+    <select class="set-rr-rhythm">
+      <option value="">(no change)</option>
+      <option value="regular">regular</option>
+      <option value="irregular">irregular</option>
+      <option value="absent">absent</option>
+    </select>
+  </label>
+  <label>Quality
+    <select class="set-rr-quality">
+      <option value="">(no change)</option>
+      <option value="normal">normal</option>
+      <option value="shallow">shallow</option>
+      <option value="labored">labored</option>
+      <option value="absent">absent</option>
+    </select>
+  </label>
+</div>
+
+<div class="inline-line">
+  <span class="group-h">Skin</span>
+  <label>Color
+    <select class="set-skin-color">
+      <option value="">(no change)</option>
+      <option value="normal">normal</option>
+      <option value="pink">pink</option>
+      <option value="pale">pale</option>
+      <option value="flushed">flushed</option>
+      <option value="cyanotic">cyanotic</option>
+      <option value="mottled">mottled</option>
+      <option value="jaundiced">jaundiced</option>
+    </select>
+  </label>
+  <label>Temp
+    <select class="set-skin-temp">
+      <option value="">(no change)</option>
+      <option value="warm">warm</option>
+      <option value="hot">hot</option>
+      <option value="cool">cool</option>
+      <option value="cold">cold</option>
+    </select>
+  </label>
+  <label>Moisture
+    <select class="set-skin-moist">
+      <option value="">(no change)</option>
+      <option value="dry">dry</option>
+      <option value="normal">normal</option>
+      <option value="moist">moist</option>
+      <option value="clammy">clammy</option>
+      <option value="diaphoretic">diaphoretic</option>
+    </select>
+  </label>
+</div>
+</div>`;
+
+    const q=s=>box.querySelector(s);
+
+    // arrow toggle
+    const tgl=box.querySelector('.tgl');
+    if (tgl){
+      tgl.addEventListener('click', ()=>{
+        const collapsed = box.classList.toggle('collapsed');
+        tgl.textContent = collapsed ? '►' : '▼';
+        tgl.setAttribute('aria-expanded', String(!collapsed));
+        tx._collapsed = collapsed; // persist in scenario
+        save(); // re-render with state saved
+      });
+    }
+
+    // field handlers
+q('.label').onchange=()=>{ tx.label=q('.label').value; save(); };
+q('.id').onchange=()=>{ tx.id=q('.id').value; save(); };
+q('.mode').onchange=()=>{ tx.mode=q('.mode').value; save(); };
+
+const bgEl = q('.bg'); if (bgEl) bgEl.onchange = () => { tx.bg = bgEl.value; save(); };
+const flashEl = q('.flash-on');
+if (flashEl) flashEl.onchange = () => { tx.flashOn = !!flashEl.checked; save(); };
+const bgOnEl = q('.bg-on'); if (bgOnEl) bgOnEl.onchange = () => { tx.bgOn = bgOnEl.value; save(); };
+
+// Δ per second + Max
+['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
+  q('.e-'+k).onchange=()=>{ tx.eff=tx.eff||{}; tx.eff[k]=parseFloat(q('.e-'+k).value||0); save(); };
+  q('.c-'+k).onchange=()=>{ tx.cap=tx.cap||{}; const v=q('.c-'+k).value; tx.cap[k]=v===''?null:parseFloat(v); save(); };
+});
+
+// Min
+['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
+  const el=q('.m-'+k);
+  if(el) el.onchange=()=>{ tx.min=tx.min||{}; const v=el.value; tx.min[k]=v===''?null:parseFloat(v); save(); };
+});
+
+// >>> ADD TARGET HANDLERS HERE <<<
+['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
+  const tel = q('.t-'+k);              // the Target input in your new row
+  if (!tel) return;
+  tel.onchange = ()=>{
+    const raw = tel.value;
+    if (raw === '' || raw == null) return;   // clearing target does nothing
+    const num = parseFloat(raw);
+    tx.min = tx.min || {};
+    tx.cap = tx.cap || {};
+    tx.min[k] = num;                          // pin to target
+    tx.cap[k] = num;
+
+    // reflect into visible Min/Max fields immediately
+    const minEl = q('.m-'+k), capEl = q('.c-'+k);
+    if (minEl) minEl.value = String(num);
+    if (capEl) capEl.value = String(num);
+    save();
+  };
+});
+
+const setSel=(cls,key)=>{ const el=q(cls); if(!el) return; el.value=tx.set?.[key]??''; el.onchange=()=>{ tx.set=tx.set||{}; tx.set[key]=el.value===''?null:el.value; save(); }; };
+setSel('.set-hr-rate','hrRate'); setSel('.set-hr-rhythm','hrRhythm'); setSel('.set-hr-quality','hrQuality');
+setSel('.set-rr-rate','rrRate'); setSel('.set-rr-rhythm','rrRhythm'); setSel('.set-rr-quality','rrQuality');
+setSel('.set-skin-color','skinColor'); setSel('.set-skin-temp','skinTemp'); setSel('.set-skin-moist','skinMoist');
+
+const prEl=q('.prio'); if (prEl) prEl.onchange=()=>{ tx.priority=parseInt(prEl.value||'0',10); save(); };
+const ovEl=q('.ovr');  if (ovEl)  ovEl.onchange = ()=>{ tx.override=!!ovEl.checked; save(); };
+
+q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
+
+
+    host.appendChild(box);
+  });
+  buildTxButtons();
+}
+
+  /* ---- Prompt UI ---- */
+  function drawAudioEditor(){
+  const host = byId('audio-list'); if (!host) return;
+  host.innerHTML = '';
+  (scenario.audios||[]).forEach((a,i)=>{
+    // defaults
+    a.bg    = a.bg    || '#fafafa';
+    a.bgOn  = a.bgOn  || '#c7f7c7';
+    a.flashOn = !!a.flashOn;
+
+    const row = document.createElement('div');
+    row.className = 'audio-row kv';
+    row.dataset.id = a.id || `aud${i+1}`;
+    row.innerHTML = `
+      <div class="row hdr" style="gap:10px;align-items:center">
+        <label style="flex:2">Label
+          <input class="a-label" type="text" value="${a.label||`Audio ${i+1}`}" placeholder="Button label">
+        </label>
+
+        <button type="button" class="btn pick">Choose file…</button>
+        <span class="audio-name">${a.name ? a.name : 'No file chosen'}</span>
+        <input class="a-file" type="file" accept="audio/*" style="display:none">
+
+        <label style="flex:0" title="Background color when OFF">
+          BG <input class="a-bg" type="color" value="${a.bg}"
+             style="width:46px;padding:0;border:0;background:transparent">
+        </label>
+
+        <label style="flex:0" title="Background color when ON">
+          BG On <input class="a-bg-on" type="color" value="${a.bgOn}"
+             style="width:60px;padding:0;border:0;background:transparent">
+        </label>
+
+        <label style="flex:0" title="Flash between BG On and BG while playing">
+          Flash <input class="a-flash-on" type="checkbox" ${a.flashOn ? 'checked' : ''}>
+        </label>
+
+        <button type="button" class="btn danger del">Delete</button>
+      </div>
+    `;
+
+    const labelEl = row.querySelector('.a-label');
+    const pickBtn = row.querySelector('.pick');
+    const fileEl  = row.querySelector('.a-file');
+    const nameEl  = row.querySelector('.audio-name');
+    const bgEl    = row.querySelector('.a-bg');
+    const bgOnEl  = row.querySelector('.a-bg-on');
+    const flashEl = row.querySelector('.a-flash-on');
+
+    // Update label live
+    labelEl.addEventListener('input', ()=>{
+      (scenario.audios||[])[i].label = labelEl.value?.trim() || `Audio ${i+1}`;
+      save();
+    });
+
+    // File picker
+    pickBtn.addEventListener('click', ()=> fileEl.click());
+    fileEl.addEventListener('change', async ()=>{
+      const f=fileEl.files?.[0]; if(!f) return;
+      nameEl.textContent = f.name;
+      const data = await readFileAsDataURL(f);
+      (scenario.audios||[])[i] = {
+        ...(scenario.audios?.[i]||{}),
+        id: row.dataset.id || `aud${i+1}`,
+        label: labelEl.value?.trim() || f.name || `Audio ${i+1}`,
+        data,
+        name: f.name,
+        bg: (scenario.audios?.[i]?.bg)||'#fafafa',
+        bgOn: (scenario.audios?.[i]?.bgOn)||'#c7f7c7',
+        flashOn: !!(scenario.audios?.[i]?.flashOn)
+      };
+      save();
+    });
+
+    // Colors + flash
+    bgEl.addEventListener('change', ()=>{
+      (scenario.audios||[])[i].bg = bgEl.value || '#fafafa';
+      save();
+    });
+    bgOnEl.addEventListener('change', ()=>{
+      (scenario.audios||[])[i].bgOn = bgOnEl.value || '#c7f7c7';
+      save();
+    });
+    flashEl.addEventListener('change', ()=>{
+      (scenario.audios||[])[i].flashOn = !!flashEl.checked;
+      save();
+    });
+
+    // Delete row
+    row.querySelector('.del').addEventListener('click', ()=>{
+      (scenario.audios||[]).splice(i,1);
+      if (currentAudioIdx === i) currentAudioIdx = -1;
+      save();
+    });
+
+    host.appendChild(row);
+  });
+}
+
+function renderAudioButtons(){
+  const host = byId('p-audio-buttons'); if (!host) return;
+  host.innerHTML = '';
+  (scenario.audios||[]).forEach((a,i)=>{
+    const src = getAudioSrc(a);
+    if (!src) return; // skip empty rows
+
+    // ensure defaults
+    a.bg    = a.bg    || '#fafafa';
+    a.bgOn  = a.bgOn  || '#c7f7c7';
+    a.flashOn = !!a.flashOn;
+
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.dataset.audio = String(i);            // index for handler
+    btn.textContent = a.label || `Audio ${i+1}`;
+
+    // set CSS variables for flash animation (reuse treatment style)
+    btn.style.setProperty('--on',  a.bgOn);
+    btn.style.setProperty('--off', a.bg);
+
+    // set initial background/flash based on playing state
+    const playing = (i === currentAudioIdx);
+    if (playing){
+      if (a.flashOn){
+        btn.classList.add('tflash');
+        btn.style.background = '';
+      } else {
+        btn.classList.remove('tflash');
+        btn.style.background = a.bgOn;
+      }
+    } else {
+      btn.classList.remove('tflash');
+      btn.style.background = a.bg;
+    }
+
+    host.appendChild(btn);
+  });
+}
+function updateAudioButtonStates(){
+  const host = byId('p-audio-buttons'); if (!host) return;
+  const btns = Array.from(host.querySelectorAll('button[data-audio]'));
+  btns.forEach(btn=>{
+    const i = +btn.dataset.audio;
+    const a = (scenario.audios||[])[i];
+    if (!a) return;
+    const playing = (i === currentAudioIdx);
+
+    // ensure vars in case colors changed
+    btn.style.setProperty('--on',  a.bgOn || '#c7f7c7');
+    btn.style.setProperty('--off', a.bg   || '#fafafa');
+
+    if (playing){
+      if (a.flashOn){
+        btn.classList.add('tflash');
+        btn.style.background = '';
+      } else {
+        btn.classList.remove('tflash');
+        btn.style.background = a.bgOn || '#c7f7c7';
+      }
+    } else {
+      btn.classList.remove('tflash');
+      btn.style.background = a.bg || '#fafafa';
+    }
+  });
+}
+
+/* ---- Injects UI ---- */
+function drawInjects(){
+  const host = byId('inject-list'); if(!host) return; host.innerHTML = '';
+  const now = elapsed|0;
+
+  (scenario.injects||[]).forEach((inj,i)=>{
+    // ensure defaults
+    inj.id = inj.id || `inj${i+1}`;
+    const dur = inj.dur ?? 0;
+    const hide = inj.hideAfter ?? dur;
+
+    const untilSec = Math.max(0, (+inj.t||0) - now);
+    const untilStr = fmt(untilSec);
+
+    const row = document.createElement('div'); row.className='row'; row.style.alignItems='center';
+
+    row.innerHTML = `
+      <span class="badge">#${i+1}</span>
+
+      <label style="flex:2;min-width:180px">Name
+        <input class="name" value="${inj.name||''}" placeholder="Inject name">
+      </label>
+
+      <div class="kv" style="display:flex;gap:8px;align-items:center">
+        <div class="muted">Until</div>
+        <div class="pill" title="Time remaining until this inject fires">${untilStr}</div>
+        <button type="button" class="btn set-time" title="Set scheduled time (mm:ss or seconds)">Set time</button>
+      </div>
+
+      <label style="width:140px" title="seconds visible after firing">Duration (s)
+        <input class="dur" type="number" min="0" value="${dur}">
+      </label>
+
+      <label style="width:160px" title="seconds after firing to remove; default equals duration">Hide after (s)
+        <input class="hide" type="number" min="0" value="${hide}">
+      </label>
+      <label title="Background color for this inject">
+        BG
+        <input class="bg" type="color" value="${inj.bg || '#eef2ff'}">
+        </label>
+      <label title="Comma list of Treatment IDs to turn ON when this inject fires">
+        Tx on fire
+    <input class="txon" placeholder="txA,txB" value="${(inj.txOn||[]).join(',')}">
+    </label>
+
+      <label class="switch" title="Manually start next inject’s countdown now">
+        <input type="checkbox" class="start-next">
+        <span>Start next now</span>
+      </label>
+
+      <button class="btn danger del" type="button">Delete</button>
+    `;
+
+    // Handlers
+    row.querySelector('.name').onchange = e => { inj.name = e.target.value; save(); };
+
+    row.querySelector('.set-time').onclick = () => {
+      const v = prompt('Set time (mm:ss or seconds):', '');
+      if (v == null) return;
+      const seconds = parseTimeFlexible(v);
+      const err = byId('inj-error');
+      if (seconds >= 0){
+        inj.t = seconds;
+        if (err) err.textContent = '';
+        save();
+      } else {
+        if (err) err.textContent = 'Invalid time. Use mm:ss or seconds.';
+      }
+    };
+
+    row.querySelector('.dur').onchange = e => {
+      inj.dur = Math.max(0, parseInt(e.target.value||'0',10));
+      if (inj.hideAfter == null) inj.hideAfter = inj.dur;
+      save();
+    };
+    row.querySelector('.bg').onchange = e => {
+        inj.bg = e.target.value; // hex string like #aabbcc
+        save();
+    };
+
+    row.querySelector('.hide').onchange = e => {
+      inj.hideAfter = Math.max(0, parseInt(e.target.value||'0',10));
+      save();
+    };
+    row.querySelector('.txon').onchange = e => {
+        inj.txOn = String(e.target.value || '')
+            .split(',')
+            .map(s => s.trim())
+            .filter(Boolean);
+        save();
+    };
+
+    // Manual chain start
+    const startNext = row.querySelector('.start-next');
+    startNext.onchange = () => {
+      if (startNext.checked){
+        startNextInject(inj.id);
+        // keep checked to indicate it was used
+        startNext.disabled = true;
+      }
+    };
+
+    row.querySelector('.del').onclick = () => {
+      scenario.injects.splice(i,1);
+      save();
+    };
+
+    host.appendChild(row);
+  });
+}
+
+function addInject(){
+  const tStr=byId('inj-time').value;
+  const seconds=parseTimeFlexible(tStr);
+  if (seconds<0){ byId('inj-error').textContent='Time must be mm:ss or seconds (e.g., 8:0, 08:00, 480, 90).'; return; }
+  byId('inj-error').textContent='';
+  const name=byId('inj-name').value||'Inject';
+  scenario.injects.push({
+    id:`inj${Date.now()}`,
+    t:seconds,
+    name,
+    dur:30,        // default visible 30 s after firing
+    hideAfter:30,  // default hide at same time as duration
+    triggers:[]
+  });
+  save();
+}
+
+function applyInjects(){
+  appliedInjects=[...(scenario.injects||[])].sort((a,b)=>a.t-b.t);
+  firedInject.clear();
+  triggeredOnce.clear();
+  renderInjects();
+  log('Applied injects to current run.');
+}
+
+/* ---------------- Persistence + wiring ---------------- */
+function save(){
+  // gather form
+  const mt=byId('meta-title'); if(mt) scenario.meta.title=mt.value;
+  const ma=byId('meta-author'); if(ma) scenario.meta.author=ma.value;
+  const td=byId('txt-dispatch'); if(td) scenario.text.dispatch=td.value;
+  const tgi=byId('txt-gi'); if(tgi) scenario.text.gi=tgi.value;
+  const tav=byId('txt-avpu'); if(tav) scenario.text.avpu=tav.value;
+  const tno=byId('txt-noi'); if(tno) scenario.text.noi=tno.value;
+  const tcs=byId('txt-cspine'); if(tcs) scenario.text.cspine=tcs.value;
+  scenario.flags.als=byId('flag-als-build')?.checked||byId('flag-als-play')?.checked||false;
+  scenario.timing.minutes=parseInt(byId('min')?.value||'15',10);
+
+  scenario.vitals.hr=+byId('v-hr').value; scenario.vitals.rr=+byId('v-rr').value;
+  scenario.vitals.spo2=+byId('v-spo2').value; scenario.vitals.sbp=+byId('v-sbp').value;
+  scenario.vitals.dbp=+byId('v-dbp').value; scenario.vitals.cbg=+byId('v-cbg').value;
+
+  // descriptors + skin
+  scenario.vitals.hrRate=byId('v-hr-rate')?.value||scenario.vitals.hrRate;
+  scenario.vitals.hrRhythm=byId('v-hr-rhythm')?.value||scenario.vitals.hrRhythm;
+  scenario.vitals.hrQuality=byId('v-hr-quality')?.value||scenario.vitals.hrQuality;
+  scenario.vitals.rrRate=byId('v-rr-rate')?.value||scenario.vitals.rrRate;
+  scenario.vitals.rrRhythm=byId('v-rr-rhythm')?.value||scenario.vitals.rrRhythm;
+  scenario.vitals.rrQuality=byId('v-rr-quality')?.value||scenario.vitals.rrQuality;
+  scenario.vitals.skinColor=byId('v-skin-color')?.value||scenario.vitals.skinColor;
+  scenario.vitals.skinTemp=byId('v-skin-temp')?.value||scenario.vitals.skinTemp;
+  scenario.vitals.skinMoist=byId('v-skin-moist')?.value||scenario.vitals.skinMoist;
+
+  // SAMPLE
+  scenario.sample.s=byId('s-s')?.value||scenario.sample.s;
+  scenario.sample.a=byId('s-a')?.value||scenario.sample.a;
+  scenario.sample.m=byId('s-m')?.value||scenario.sample.m;
+  scenario.sample.p=byId('s-p')?.value||scenario.sample.p;
+  scenario.sample.l=byId('s-l')?.value||scenario.sample.l;
+  scenario.sample.e=byId('s-e')?.value||scenario.sample.e;
+  scenario.sample.phys=byId('phys')?.value||scenario.sample.phys;
+
+  // OPQRST
+  scenario.opqrst = scenario.opqrst || {o:"",p:"",q:"",r:"",s:"",t:""};
+  scenario.opqrst.o = byId('o-o')?.value || scenario.opqrst.o;
+  scenario.opqrst.p = byId('o-p')?.value || scenario.opqrst.p;
+  scenario.opqrst.q = byId('o-q')?.value || scenario.opqrst.q;
+  scenario.opqrst.r = byId('o-r')?.value || scenario.opqrst.r;
+  scenario.opqrst.s = byId('o-s')?.value || scenario.opqrst.s;
+  scenario.opqrst.t = byId('o-t')?.value || scenario.opqrst.t;
+
+   // Audio cues (list) — keep existing files; only update labels from UI
+  {
+    const host = byId('audio-list');
+    if (host){
+      const rows = Array.from(host.querySelectorAll('.audio-row'));
+      rows.forEach((row,i)=>{
+        const label = row.querySelector('.a-label')?.value?.trim();
+        if (scenario.audios[i]){
+          scenario.audios[i].label = label || scenario.audios[i].label || `Audio ${i+1}`;
+        }
+      });
+    }
+  }
+
+  localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+  const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
+  drawInjects(); drawTreatments(); buildTxButtons(); renderAll();
+}
+function load(){
+  const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
+  // seed UI
+  byId('meta-title').value=scenario.meta.title||'';
+  byId('meta-author').value=scenario.meta.author||'';
+  byId('txt-dispatch').value=scenario.text.dispatch||'';
+  byId('txt-gi').value=scenario.text.gi||'';
+  byId('txt-avpu').value=scenario.text.avpu||'';
+  byId('txt-noi').value=scenario.text.noi||'';
+  byId('txt-cspine').value=scenario.text.cspine||'';
+  byId('min').value=scenario.timing.minutes||15;
+
+  byId('v-hr').value=scenario.vitals.hr; byId('v-rr').value=scenario.vitals.rr; byId('v-spo2').value=scenario.vitals.spo2;
+  byId('v-sbp').value=scenario.vitals.sbp; byId('v-dbp').value=scenario.vitals.dbp; byId('v-cbg').value=scenario.vitals.cbg;
+
+  const setVal=(id,val)=>{ const el=byId(id); if(el) el.value=val||el.value; };
+  setVal('v-hr-rate', scenario.vitals.hrRate);
+  setVal('v-hr-rhythm', scenario.vitals.hrRhythm);
+  setVal('v-hr-quality', scenario.vitals.hrQuality);
+  setVal('v-rr-rate', scenario.vitals.rrRate);
+  setVal('v-rr-rhythm', scenario.vitals.rrRhythm);
+  setVal('v-rr-quality', scenario.vitals.rrQuality);
+  setVal('v-skin-color', scenario.vitals.skinColor);
+  setVal('v-skin-temp', scenario.vitals.skinTemp);
+  setVal('v-skin-moist', scenario.vitals.skinMoist);
+
+  if(!scenario.opqrst) scenario.opqrst = {o:"",p:"",q:"",r:"",s:"",t:""};
+    const setInput = (id,val)=>{ const el=byId(id); if(el) el.value = val || ''; };
+    setInput('o-o', scenario.opqrst.o);
+    setInput('o-p', scenario.opqrst.p);
+    setInput('o-q', scenario.opqrst.q);
+    setInput('o-r', scenario.opqrst.r);
+    setInput('o-s', scenario.opqrst.s);
+    setInput('o-t', scenario.opqrst.t);
+  // migrate single -> list once
+  if (!scenario.audios) scenario.audios = [];
+  if (scenario.audio && (scenario.audio.label || scenario.audio.url)){
+    scenario.audios.push({
+      id:`aud${Date.now()}`,
+      label: scenario.audio.label || 'Audio',
+      url: scenario.audio.url || ''
+    });
+    delete scenario.audio;
+  }
+  drawAudioEditor();   // build list UI
+
+  drawInjects(); drawTreatments(); buildTxButtons(); resetRun();
+}
+function wire(){
+  // mode
+  safeOn(byId('mode-build'),'click',()=>{ byId('build').classList.remove('hidden'); byId('play').classList.add('hidden'); renderAll(); });
+  safeOn(byId('mode-play'),'click',()=>{ byId('build').classList.add('hidden'); byId('play').classList.remove('hidden'); renderAll(); });
+  // run
+  safeOn(byId('start'),'click',start); safeOn(byId('pause'),'click',pause); safeOn(byId('reset'),'click',resetRun);
+  safeOn(byId('p-start'),'click',start); safeOn(byId('p-pause'),'click',pause); safeOn(byId('p-reset'),'click',resetRun);
+ const audioBtnsHost = byId('p-audio-buttons');
+if (audioBtnsHost){
+  audioBtnsHost.addEventListener('click', async (e)=>{
+    const b = e.target.closest('button[data-audio]');
+    if (!b) return;
+    const idx = +b.dataset.audio;
+    const rec = (scenario.audios||[])[idx];
+    const el  = byId('p-audio');
+    if (!rec || !getAudioSrc(rec) || !el){ alert('No audio file set for this button.'); return; }
+    if (el.src !== getAudioSrc(rec)) el.src = getAudioSrc(rec);
+    el.loop = audioLoop;
+    try{
+      el.currentTime = 0;
+      await el.play();
+      currentAudioIdx = idx;
+      updateAudioButtonStates();
+    }catch(err){
+      console.warn('Audio play failed:', err);
+      alert('Browser blocked autoplay. Click once on the page, then try again.');
+    }
+  });
+}
+  // STOP button
+  safeOn(byId('p-audio-stop'), 'click', () => {
+    const el = byId('p-audio');
+    if (!el) return;
+    el.pause();
+    el.currentTime = 0;
+    currentAudioIdx = -1;
+    updateAudioButtonStates();
+  });
+
+  // LOOP toggle
+  safeOn(byId('p-audio-loop'), 'click', () => {
+    audioLoop = !audioLoop;
+    const el = byId('p-audio');
+    if (el) el.loop = audioLoop;
+    const btn = byId('p-audio-loop');
+    if (btn) {
+        btn.textContent = audioLoop ? 'Loop: On' : 'Loop: Off';
+        btn.classList.toggle('success', audioLoop);
+  }
+});
+
+// BUILD: add-audio button
+safeOn(byId('add-audio'),'click',()=>{
+  scenario.audios = scenario.audios || [];
+  scenario.audios.push({
+    id:`aud${Date.now()}`,
+    label:`Audio ${scenario.audios.length+1}`,
+    data:null,   // will be filled when a file is chosen
+    name:''      // nice to show file name in the UI
+  });
+  save();
+});
+
+
+  // ALS
+  safeOn(byId('flag-als-build'),'change',()=>{ scenario.flags.als=byId('flag-als-build').checked; const cp=byId('flag-als-play'); if(cp) cp.checked=scenario.flags.als; save(); });
+  safeOn(byId('flag-als-play'),'change',()=>{ scenario.flags.als=byId('flag-als-play').checked; const cb=byId('flag-als-build'); if(cb) cb.checked=scenario.flags.als; save(); });
+  // inputs
+  ['meta-title','meta-author','txt-dispatch','txt-gi','txt-avpu','txt-noi','txt-cspine','min',
+  'v-hr','v-rr','v-spo2','v-sbp','v-dbp','v-cbg',
+  's-s','s-a','s-m','s-p','s-l','s-e','phys',
+  'o-o','o-p','o-q','o-r','o-s','o-t','audio-label','audio-url', 
+  'v-hr-rate','v-hr-rhythm','v-hr-quality','v-rr-rate','v-rr-rhythm','v-rr-quality','v-skin-color','v-skin-temp','v-skin-moist']
+  .forEach(id=> safeOn(byId(id),'input',save));
+
+  // adders
+  safeOn(byId('add-tx'),'click',()=>{ scenario.treatments.push({id:`tx${Date.now()}`,label:"New Treatment",mode:"toggle",eff:{},cap:{}}); save(); });
+  safeOn(byId('add-inject'),'click',addInject);
+  safeOn(byId('apply-injects'),'click',applyInjects);
+  // export/import
+  safeOn(byId('export'),'click',()=>{
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(scenario,null,2)],{type:'application/json'}));
+    a.download=(scenario.meta.title||'scenario')+'.json';
+    a.click();
+  });
+  safeOn(byId('import-label'),'click',()=> byId('import')?.click());
+  safeOn(byId('import'),'change',(e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{ try{
+      scenario=JSON.parse(r.result);
+      localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+      load();
+    }catch{ alert('Invalid JSON'); } };
+    r.readAsText(f);
+  });
+} // <-- close wire()
+
+document.addEventListener('DOMContentLoaded', ()=>{ wire(); load(); });
+</script>
+</body>
+</html>
