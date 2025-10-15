@@ -150,6 +150,11 @@
 .inline-line .group-h{font-weight:700; min-width:64px}
 .inline-line label{display:flex;align-items:center;gap:6px;margin:0}
 .inline-line select{min-width:140px}
+/* Inline selector groups inside a Treatment card */
+.inline-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.inline-line .group-h{font-weight:700; min-width:64px}
+.inline-line label{display:flex;align-items:center;gap:6px;margin:0}
+.inline-line select{min-width:140px}
 .kv.collapsed .body{display:none}
   /* Arrow toggle button for Treatments */
 .icon-btn{background:transparent;border:0;cursor:pointer;padding:4px 6px;font-size:16px;line-height:1}
@@ -342,7 +347,15 @@ header .title{
           <button id="apply-injects" class="btn primary">Apply to current run</button>
         </div>
       </details>
-
+    <div class="divider"></div>
+    <h3>Pre-saved Scenarios</h3>
+    <div id="preset-load" class="row">
+      <button class="btn" data-slot="1">Slot 1</button>
+      <button class="btn" data-slot="2">Slot 2</button>
+      <button class="btn" data-slot="3">Slot 3</button>
+      <button class="btn" data-slot="4">Slot 4</button>
+    </div>
+    <div class="mini">Click a slot → enter password → that scenario loads into the builder.</div>
       <div class="divider"></div>
       <h3>Vitals</h3>
       <div class="three">
@@ -509,6 +522,81 @@ header .title{
 
 <script>
 "use strict";
+/* ---------- Password-locked scenarios (client-side AES-GCM) ---------- */
+const lockedScenarios = [
+  { label: 'Slot 1', data: '' }, // paste encrypted strings into "data"
+  { label: 'Slot 2', data: '' },
+  { label: 'Slot 3', data: '' },
+  { label: 'Slot 4', data: '' }
+];
+
+const te = new TextEncoder(), td = new TextDecoder();
+function b64u(bytes){
+  let s = btoa(String.fromCharCode(...bytes));
+  return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64uToBytes(s){
+  s = s.replace(/-/g,'+').replace(/_/g,'/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s), out = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function deriveKey(password, salt){
+  const km = await crypto.subtle.importKey('raw', te.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name:'PBKDF2', salt, iterations:250000, hash:'SHA-256' },
+    km,
+    { name:'AES-GCM', length:256 },
+    false,
+    ['encrypt','decrypt']
+  );
+}
+async function encryptEnvelope(plainText, password){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(password, salt);
+  const ct   = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, te.encode(plainText)));
+  return `v1.${b64u(salt)}.${b64u(iv)}.${b64u(ct)}`;
+}
+async function decryptEnvelope(envelope, password){
+  const [v, s, i, c] = String(envelope).split('.');
+  if (v !== 'v1') throw new Error('Unsupported version');
+  const salt = b64uToBytes(s), iv = b64uToBytes(i), ct = b64uToBytes(c);
+  const key  = await deriveKey(password, salt);
+  const pt   = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
+  return td.decode(pt);
+}
+async function loadLocked(slotIndex, password){
+  const rec = lockedScenarios[slotIndex];
+  if (!rec || !rec.data){ alert('This slot is empty.'); return; }
+  try{
+    const json = await decryptEnvelope(rec.data, password);
+    const obj  = JSON.parse(json);
+    obj.prompts = [];             // keep prompts removed
+    scenario = obj;
+    localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+    load();
+    alert('Loaded: ' + (obj.meta?.title || rec.label || ('Slot ' + (slotIndex+1))));
+  }catch(e){
+    console.error(e);
+    alert('Incorrect password or corrupt scenario.');
+  }
+}
+// helper to generate ciphertext for the *current* scenario (use in DevTools)
+window.genCipher = async (label, password) => {
+  const env = await encryptEnvelope(JSON.stringify(scenario), password);
+  console.log({ label, data: env });
+  return env;
+};
+function renderPresetButtons(){
+  const host = byId('preset-load'); if(!host) return;
+  host.querySelectorAll('button[data-slot]').forEach(btn=>{
+    const idx = (+btn.dataset.slot)-1, rec = lockedScenarios[idx];
+    if (rec?.label) btn.textContent = rec.label;
+    btn.style.opacity = rec?.data ? '1' : '0.6';
+  });
+}
 
 /* ---------------- Utilities ---------------- */
 const byId = (id) => document.getElementById(id);
@@ -1717,7 +1805,7 @@ function load(){
   }
   drawAudioEditor();   // build list UI
 
-  drawInjects(); drawTreatments(); buildTxButtons(); resetRun();
+  drawInjects(); drawTreatments(); buildTxButtons(); resetRun(); renderPresetButtons();
 }
 function wire(){
   // mode
@@ -1816,6 +1904,17 @@ safeOn(byId('add-audio'),'click',()=>{
     }catch{ alert('Invalid JSON'); } };
     r.readAsText(f);
   });
+  // Pre-saved scenario loader
+const presetHost = byId('preset-load');
+if (presetHost){
+  presetHost.addEventListener('click', async (e)=>{
+    const b = e.target.closest('button[data-slot]'); if (!b) return;
+    const idx = (+b.dataset.slot) - 1;
+    const label = lockedScenarios[idx]?.label || ('Slot ' + (idx+1));
+    const pw = prompt('Password for ' + label + ':'); if (pw == null) return;
+    await loadLocked(idx, pw);
+  });
+}
 } // <-- close wire()
 
 document.addEventListener('DOMContentLoaded', ()=>{ wire(); load(); });
