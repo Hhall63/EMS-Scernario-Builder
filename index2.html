@@ -1138,6 +1138,11 @@ function drawTreatments(){
     if (tx._collapsed) box.classList.add('collapsed');
 
     box.innerHTML=`
+    const editBtn = box.querySelector('[data-edit-urgent]');
+if (editBtn) editBtn.addEventListener('click', () => openEditUrgentModal(tx));
+
+const preview = box.querySelector('.urgent-preview');
+if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
       <div class="row hdr">
         <button class="icon-btn tgl" type="button" aria-label="Toggle details" aria-expanded="${!tx._collapsed ? 'true' : 'false'}">${tx._collapsed ? '►' : '▼'}</button>
         <label style="flex:2">Label <input class="label" value="${tx.label||''}"></label>
@@ -1328,10 +1333,11 @@ function drawTreatments(){
     <span>Show URGENT popup when activated</span>
   </label>
 </div>
-<div>
-  <div style="font-weight:600; margin-bottom:4px">Urgent message</div>
-  <textarea class="urgent-msg" rows="2" placeholder="Message shown in the red URGENT popup"></textarea>
+<div class="row">
+  <button type="button" class="btn" data-edit-urgent>Edit URGENT Message</button>
+  <span class="muted urgent-preview"></span>
 </div>
+
 </div>`;
 
     const q=s=>box.querySelector(s);
@@ -1995,6 +2001,25 @@ document.addEventListener('DOMContentLoaded', ()=>{ wire(); load(); });
     <div class="modal-body" id="urgent-message">—</div>
     <div class="modal-actions">
       <button id="urgent-close" class="btn">Close</button>
+    </div>
+  </div>
+</div>
+<!-- URGENT modal -->
+<div id="urgent-modal" class="modal" aria-hidden="true">
+  ...
+</div>
+
+<!-- EDIT URGENT MODAL -->
+<div id="edit-urgent-modal" class="modal" aria-hidden="true">
+  <div class="modal-backdrop" id="edit-urgent-backdrop"></div>
+  <div class="modal-card" role="dialog" aria-labelledby="edit-urgent-title">
+    <div class="modal-head" id="edit-urgent-title">Edit Urgent Message</div>
+    <div class="modal-body">
+      <textarea id="edit-urgent-text" rows="4" style="width:100%;font-size:16px;border-radius:8px;padding:8px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="edit-urgent-cancel">Cancel</button>
+      <button class="btn success" id="edit-urgent-save">Save</button>
     </div>
   </div>
 </div>
