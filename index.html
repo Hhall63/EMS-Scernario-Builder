@@ -540,7 +540,10 @@ function readFileAsDataURL(file){
   });
 }
 
-function getAudioSrc(a){ return (a && (a.data || a.url)) || ''; }
+function getAudioSrc(a){
+  // prefer runtime object URL, then normal url, then (legacy) data
+  return (a && (a._objectUrl || a.url || a.data)) || '';
+}
 
 /* ---------------- Scenario model ---------------- */
 let scenario = {
@@ -1331,21 +1334,27 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     // File picker
     pickBtn.addEventListener('click', ()=> fileEl.click());
     fileEl.addEventListener('change', async ()=>{
-      const f=fileEl.files?.[0]; if(!f) return;
-      nameEl.textContent = f.name;
-      const data = await readFileAsDataURL(f);
-      (scenario.audios||[])[i] = {
-        ...(scenario.audios?.[i]||{}),
-        id: row.dataset.id || `aud${i+1}`,
-        label: labelEl.value?.trim() || f.name || `Audio ${i+1}`,
-        data,
-        name: f.name,
-        bg: (scenario.audios?.[i]?.bg)||'#fafafa',
-        bgOn: (scenario.audios?.[i]?.bgOn)||'#c7f7c7',
-        flashOn: !!(scenario.audios?.[i]?.flashOn)
-      };
-      save();
-    });
+  const f=fileEl.files?.[0]; if(!f) return;
+  nameEl.textContent = f.name;
+
+  // Create a temporary object URL for playback (do NOT store full file in localStorage)
+  const objURL = URL.createObjectURL(f);
+
+  (scenario.audios||[])[i] = {
+    ...(scenario.audios?.[i]||{}),
+    id: row.dataset.id || `aud${i+1}`,
+    label: labelEl.value?.trim() || f.name || `Audio ${i+1}`,
+    url: objURL,         // use the object URL at runtime
+    _objectUrl: objURL,  // mark as volatile (don’t persist)
+    name: f.name,
+    bg: (scenario.audios?.[i]?.bg)||'#fafafa',
+    bgOn: (scenario.audios?.[i]?.bgOn)||'#c7f7c7',
+    flashOn: !!(scenario.audios?.[i]?.flashOn)
+    // no .data here on purpose
+  };
+
+  save();
+});
 
     // Colors + flash
     bgEl.addEventListener('change', ()=>{
@@ -1635,7 +1644,30 @@ function save(){
     }
   }
 
-  localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+  function scenarioForStorage(){
+  // deep clone, then strip volatile / huge fields
+  const copy = JSON.parse(JSON.stringify(scenario));
+  if (Array.isArray(copy.audios)){
+    copy.audios.forEach(a=>{
+      if (!a) return;
+      delete a.data;        // strip any legacy base64
+      delete a._objectUrl;  // strip runtime object URLs
+      // keep a.url if it’s an http(s) link; object URLs won’t survive reloads anyway
+      if (a.url && a.url.startsWith('blob:')) {
+        // blob: URLs are session-only; don’t persist them
+        delete a.url;
+      }
+    });
+  }
+  return copy;
+}
+try{
+  localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenarioForStorage()));
+  const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
+}catch(e){
+  console.warn('Autosave skipped (likely storage full):', e);
+  const a=byId('autosave'); if(a){ a.textContent='storage full'; }
+}
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
   drawInjects(); drawTreatments(); buildTxButtons(); renderAll();
 }
