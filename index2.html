@@ -1328,9 +1328,10 @@ function drawTreatments(){
     <span>Show URGENT popup when activated</span>
   </label>
 </div>
-<label>Urgent message
+<div>
+  <div style="font-weight:600; margin-bottom:4px">Urgent message</div>
   <textarea class="urgent-msg" rows="2" placeholder="Message shown in the red URGENT popup"></textarea>
-</label>
+</div>
 </div>`;
 
     const q=s=>box.querySelector(s);
@@ -1731,6 +1732,10 @@ function applyInjects(){
 
 /* ---------------- Persistence + wiring ---------------- */
 function save(){
+    function save(){
+  // ⛔ Do not redraw or write while typing the urgent message
+  if (editingUrgent) return;
+  // ---- existing save() code continues here ----
   // gather form
   const mt=byId('meta-title'); if(mt) scenario.meta.title=mt.value;
   const ma=byId('meta-author'); if(ma) scenario.meta.author=ma.value;
@@ -1813,8 +1818,6 @@ try{
   console.warn('Autosave skipped (likely storage full):', e);
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
-  localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
-const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
 drawInjects();
 if (!editingUrgent) { drawTreatments(); }   // don’t rebuild while typing
 buildTxButtons();
