@@ -1175,10 +1175,6 @@ function drawTreatments(){
     if (tx._collapsed) box.classList.add('collapsed');
 
     box.innerHTML = `
-    const editBtn = box.querySelector('[data-edit-urgent]');
-if (editBtn) editBtn.addEventListener('click', ()=> openEditUrgentModal(i));
-const preview = box.querySelector('.urgent-preview');
-if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
   <div class="row hdr">
     <button class="icon-btn tgl" type="button" aria-label="Toggle details" aria-expanded="${!tx._collapsed ? 'true' : 'false'}">${tx._collapsed ? '►' : '▼'}</button>
     <label style="flex:2">Label <input class="label" value="${tx.label||''}"></label>
@@ -1368,7 +1364,10 @@ if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent mes
 `;
 
     const q=s=>box.querySelector(s);
-
+const editBtn = box.querySelector('[data-edit-urgent]');
+if (editBtn) editBtn.addEventListener('click', ()=> openEditUrgentModal(i));
+const preview = box.querySelector('.urgent-preview');
+if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
     // arrow toggle
     const tgl=box.querySelector('.tgl');
     if (tgl){
