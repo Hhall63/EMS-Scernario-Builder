@@ -668,6 +668,7 @@ let currentAudioIdx = -1; // which audio button is currently playing (-1 = none)
 let running=false, interval=null, tLeft=0, elapsed=0;
 let editingUrgent = false;
 let editingUrgentIndex = -1;
+let typingInTx = false;
 let audioLoop = false;
 let vitals={}, baseline={}, activeTx={}, decayTx={};
 let appliedInjects=[], firedInject=new Set();
@@ -1087,7 +1088,7 @@ if (physEl){
   updateAudioButtonStates();
 }
 function renderAll(){
-  if (editingUrgent) return;   // hard freeze to preserve focus
+  if (editingUrgent || typingInTx) return;
   renderStatic();
   renderInjects();
 }
@@ -1166,7 +1167,7 @@ if (isOn && tx.urgent){
 
 
 function drawTreatments(){
-  if (editingUrgent) return;
+  if (editingUrgent || typingInTx) return;
   const host=byId('tx-list'); if(!host) return; host.innerHTML='';
   (scenario.treatments||[]).forEach((tx,i)=>{
     const box=document.createElement('div');
@@ -1754,7 +1755,7 @@ function applyInjects(){
 
 /* ---------------- Persistence + wiring ---------------- */
 function save(){
-  if (editingUrgent) return;        // <-- do nothing while typing URGENT
+  if (editingUrgent || typingInTx) return;
   // gather form
   const mt=byId('meta-title'); if(mt) scenario.meta.title=mt.value;
   const ma=byId('meta-author'); if(ma) scenario.meta.author=ma.value;
@@ -1944,9 +1945,22 @@ if (audioBtnsHost){
 safeOn(byId('urgent-close'),'click',closeUrgent);
 safeOn(byId('urgent-backdrop'),'click',closeUrgent);
 
+// modal buttons
 safeOn(byId('edit-urgent-save'),    'click', saveEditUrgentModal);
 safeOn(byId('edit-urgent-cancel'),  'click', closeEditUrgentModal);
 safeOn(byId('edit-urgent-backdrop'),'click', closeEditUrgentModal);
+
+// freeze redraws while typing in Treatments or the urgent textarea
+const txHost = byId('tx-list');
+if (txHost){
+  txHost.addEventListener('focusin',  e => { if (e.target.matches('input,textarea,select')) typingInTx = true; });
+  txHost.addEventListener('focusout', e => { if (e.target.matches('input,textarea,select')) typingInTx = false; });
+}
+const urgText = byId('edit-urgent-text');
+if (urgText){
+  urgText.addEventListener('focusin',  ()=> typingInTx = true);
+  urgText.addEventListener('focusout', ()=> typingInTx = false);
+}
 
 // BUILD: add-audio button
 safeOn(byId('add-audio'),'click',()=>{
