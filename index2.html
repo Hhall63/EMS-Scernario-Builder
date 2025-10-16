@@ -256,6 +256,14 @@ header .title{
   <button id="start" class="btn success" style="font-size:15px">Start</button>
   <button id="pause" class="btn" style="font-size:15px">Pause</button>
   <button id="reset" class="btn danger" style="font-size:15px">Reset</button>
+  <button id="clear-all" class="btn danger" style="font-size:15px">Clear All</button>
+
+  <div class="timer-wrap">
+    <div id="timer" class="big-timer">15:00</div>
+    <div class="timer-caption">Scenario Time Remaining</div>
+  </div>
+</div>
+
 
   <div class="timer-wrap">
     <div id="timer" class="big-timer">15:00</div>
@@ -533,7 +541,10 @@ header .title{
 "use strict";
 /* ---------- Password-locked scenarios (client-side AES-GCM) ---------- */
 const lockedScenarios = [
-  { label: 'Slot 1', data: '' }, // paste encrypted strings into "data"
+  {
+    label: 'TSOP1',
+    data: `v1.sTlZjVeI1sOiAhLFb6HGhg.T8oMaxnQc...<rest of your very long string>...`
+  },
   { label: 'Slot 2', data: '' },
   { label: 'Slot 3', data: '' },
   { label: 'Slot 4', data: '' }
@@ -1889,6 +1900,42 @@ function load(){
   drawAudioEditor();   // build list UI
 
   drawInjects(); drawTreatments(); buildTxButtons(); resetRun(); renderPresetButtons();
+}
+function clearAll(){
+  if (!confirm(
+    'This will clear the builder (meta, text, SAMPLE, OPQRST, vitals, treatments, injects, audio).\n' +
+    'It will NOT touch your encrypted presets or any JSON files you exported.\n\nContinue?'
+  )) return;
+
+  // free any temp audio object URLs
+  try { (scenario.audios||[]).forEach(a => a && a._objectUrl && URL.revokeObjectURL(a._objectUrl)); } catch {}
+
+  // reset working scenario (keeps presets; just replaces the in-memory/autosave draft)
+  scenario = {
+    meta:{title:"Scenario name",version:1,author:""},
+    text:{dispatch:"",gi:"",avpu:"",noi:"",cspine:""},
+    flags:{als:false},
+    timing:{minutes:15},
+    injects:[],
+    vitals:{
+      hr:110, rr:26, spo2:88, sbp:98, dbp:62, cbg:120,
+      skinColor:"normal", skinTemp:"warm", skinMoist:"dry",
+      hrRate:"normal", hrRhythm:"regular", hrQuality:"normal",
+      rrRate:"normal", rrRhythm:"regular", rrQuality:"normal"
+    },
+    sample:{s:"",a:"",m:"",p:"",l:"",e:"",phys:""},
+    opqrst:{o:"",p:"",q:"",r:"",s:"",t:""},
+    audios:[],
+    treatments:[],
+    prompts:[]
+  };
+
+  // update the autosave slot so reload matches the cleared builder
+  localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+
+  // rebuild UI + reset timers/state
+  load();
+  alert('Builder cleared.');
 }
 function wire(){
   // mode
