@@ -1086,7 +1086,11 @@ if (physEl){
   renderAudioButtons();
   updateAudioButtonStates();
 }
-function renderAll(){ renderStatic(); renderInjects(); }
+function renderAll(){
+  if (editingUrgent) return;   // hard freeze to preserve focus
+  renderStatic();
+  renderInjects();
+}
 
 /* ---------------- UI builders ---------------- */
 function buildTxButtons(){
@@ -1162,6 +1166,7 @@ if (isOn && tx.urgent){
 
 
 function drawTreatments(){
+  if (editingUrgent) return;
   const host=byId('tx-list'); if(!host) return; host.innerHTML='';
   (scenario.treatments||[]).forEach((tx,i)=>{
     const box=document.createElement('div');
@@ -1169,6 +1174,10 @@ function drawTreatments(){
     if (tx._collapsed) box.classList.add('collapsed');
 
     box.innerHTML = `
+    const editBtn = box.querySelector('[data-edit-urgent]');
+if (editBtn) editBtn.addEventListener('click', ()=> openEditUrgentModal(i));
+const preview = box.querySelector('.urgent-preview');
+if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
   <div class="row hdr">
     <button class="icon-btn tgl" type="button" aria-label="Toggle details" aria-expanded="${!tx._collapsed ? 'true' : 'false'}">${tx._collapsed ? '►' : '▼'}</button>
     <label style="flex:2">Label <input class="label" value="${tx.label||''}"></label>
@@ -1356,11 +1365,6 @@ function drawTreatments(){
     </div>
   </div>
 `;
-
-const editBtn = box.querySelector('[data-edit-urgent]');
-if (editBtn) editBtn.addEventListener('click', ()=> openEditUrgentModal(i));
-const preview = box.querySelector('.urgent-preview');
-if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
 
     const q=s=>box.querySelector(s);
 
@@ -1939,10 +1943,10 @@ if (audioBtnsHost){
 
 safeOn(byId('urgent-close'),'click',closeUrgent);
 safeOn(byId('urgent-backdrop'),'click',closeUrgent);
-const editBtn = box.querySelector('[data-edit-urgent]');
-if (editBtn) editBtn.addEventListener('click', ()=> openEditUrgentModal(i));
-const preview = box.querySelector('.urgent-preview');
-if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
+
+safeOn(byId('edit-urgent-save'),    'click', saveEditUrgentModal);
+safeOn(byId('edit-urgent-cancel'),  'click', closeEditUrgentModal);
+safeOn(byId('edit-urgent-backdrop'),'click', closeEditUrgentModal);
 
 // BUILD: add-audio button
 safeOn(byId('add-audio'),'click',()=>{
