@@ -667,6 +667,7 @@ let scenario = {
 let currentAudioIdx = -1; // which audio button is currently playing (-1 = none)
 let running=false, interval=null, tLeft=0, elapsed=0;
 let editingUrgent = false;
+let editingUrgentIndex = -1;
 let audioLoop = false;
 let vitals={}, baseline={}, activeTx={}, decayTx={};
 let appliedInjects=[], firedInject=new Set();
@@ -695,6 +696,36 @@ function closeUrgent(){
   if(!m) return;
   m.classList.remove('show');
   m.setAttribute('aria-hidden','true');
+}
+function openEditUrgentModal(index){
+  const m = byId('edit-urgent-modal');
+  const t = byId('edit-urgent-text');
+  if(!m || !t) return;
+  editingUrgent = true;                 // freeze save() re-renders
+  editingUrgentIndex = index;
+  const tx = (scenario.treatments||[])[index];
+  t.value = tx?.urgentMsg || '';
+  m.classList.add('show');
+  m.setAttribute('aria-hidden','false');
+  setTimeout(()=>t.focus(),0);          // ensure cursor stays
+}
+function closeEditUrgentModal(){
+  const m = byId('edit-urgent-modal');
+  if(m){
+    m.classList.remove('show');
+    m.setAttribute('aria-hidden','true');
+  }
+  editingUrgent = false;
+  editingUrgentIndex = -1;
+}
+function saveEditUrgentModal(){
+  const idx = editingUrgentIndex;
+  const t = byId('edit-urgent-text');
+  if (idx >= 0 && scenario.treatments && scenario.treatments[idx]){
+    scenario.treatments[idx].urgentMsg = t.value || '';
+  }
+  closeEditUrgentModal();
+  save();                                // rebuild UI and previews
 }
 
 // Parse "id:delay,id2:delay" where delay can be "90" or "1:30"
@@ -1137,208 +1168,199 @@ function drawTreatments(){
     box.className='kv';
     if (tx._collapsed) box.classList.add('collapsed');
 
-    box.innerHTML=`
-    const editBtn = box.querySelector('[data-edit-urgent]');
-if (editBtn) editBtn.addEventListener('click', () => openEditUrgentModal(tx));
+    box.innerHTML = `
+  <div class="row hdr">
+    <button class="icon-btn tgl" type="button" aria-label="Toggle details" aria-expanded="${!tx._collapsed ? 'true' : 'false'}">${tx._collapsed ? '►' : '▼'}</button>
+    <label style="flex:2">Label <input class="label" value="${tx.label||''}"></label>
+    <label style="flex:1">ID <input class="id" value="${tx.id||''}"></label>
+    <label style="flex:1">Mode <select class="mode">
+      <option value="toggle" ${tx.mode==='toggle'?'selected':''}>toggle</option>
+      <option value="oneShot" ${tx.mode==='oneShot'?'selected':''}>oneShot</option>
+    </select></label>
+    <label style="flex:0" title="Background color when OFF">
+      BG <input class="bg" type="color" value="${tx.bg || '#fafafa'}" style="width:46px;padding:0;border:0;background:transparent">
+    </label>
+    <label style="flex:0" title="Background color when ON">
+      BG On <input class="bg-on" type="color" value="${tx.bgOn || tx.bg || '#c7f7c7'}" style="width:60px;padding:0;border:0;background:transparent">
+    </label>
+    <label style="flex:0" title="Flash between BG On and BG while ON">
+      Flash <input class="flash-on" type="checkbox" ${tx.flashOn ? 'checked' : ''}>
+    </label>
+    <label style="width:90px" title="Higher runs first">
+      Priority <input class="prio" type="number" value="${tx.priority??0}">
+    </label>
+    <label style="width:110px" title="If set, this treatment’s per-vital deltas override lower priority deltas">
+      Override <input class="ovr" type="checkbox" ${tx.override?'checked':''}>
+    </label>
+    <button class="btn danger del" type="button">Delete</button>
+  </div>
 
+  <div class="body">
+    <div class="vital-rows">
+      <div class="vital-row head">
+        <div></div><div>Δ per second</div><div>Target</div><div>Max (cap)</div><div>Min (floor)</div>
+      </div>
+      <div class="vital-row">
+        <div class="vlabel">HR</div>
+        <input class="e-hr"  type="number" step="0.01" value="${tx.eff?.hr||0}">
+        <input class="t-hr"  type="number" step="0.1"  value="">
+        <input class="c-hr"  type="number" step="0.1"  value="${tx.cap?.hr??''}"  placeholder="none">
+        <input class="m-hr"  type="number" step="0.1"  value="${tx.min?.hr??''}"  placeholder="none">
+      </div>
+      <div class="vital-row">
+        <div class="vlabel">RR</div>
+        <input class="e-rr"  type="number" step="0.01" value="${tx.eff?.rr||0}">
+        <input class="t-rr"  type="number" step="0.1"  value="">
+        <input class="c-rr"  type="number" step="0.1"  value="${tx.cap?.rr??''}"  placeholder="none">
+        <input class="m-rr"  type="number" step="0.1"  value="${tx.min?.rr??''}"  placeholder="none">
+      </div>
+      <div class="vital-row">
+        <div class="vlabel">SpO₂</div>
+        <input class="e-spo2"  type="number" step="0.01" value="${tx.eff?.spo2||0}">
+        <input class="t-spo2"  type="number" step="0.1"  value="">
+        <input class="c-spo2"  type="number" step="0.1"  value="${tx.cap?.spo2??''}"  placeholder="none">
+        <input class="m-spo2"  type="number" step="0.1"  value="${tx.min?.spo2??''}"  placeholder="none">
+      </div>
+      <div class="vital-row">
+        <div class="vlabel">SBP</div>
+        <input class="e-sbp"  type="number" step="0.01" value="${tx.eff?.sbp||0}">
+        <input class="t-sbp"  type="number" step="0.1"  value="">
+        <input class="c-sbp"  type="number" step="0.1"  value="${tx.cap?.sbp??''}"  placeholder="none">
+        <input class="m-sbp"  type="number" step="0.1"  value="${tx.min?.sbp??''}"  placeholder="none">
+      </div>
+      <div class="vital-row">
+        <div class="vlabel">DBP</div>
+        <input class="e-dbp"  type="number" step="0.01" value="${tx.eff?.dbp||0}">
+        <input class="t-dbp"  type="number" step="0.1"  value="">
+        <input class="c-dbp"  type="number" step="0.1"  value="${tx.cap?.dbp??''}"  placeholder="none">
+        <input class="m-dbp"  type="number" step="0.1"  value="${tx.min?.dbp??''}"  placeholder="none">
+      </div>
+      <div class="vital-row">
+        <div class="vlabel">CBG</div>
+        <input class="e-cbg"  type="number" step="0.01" value="${tx.eff?.cbg||0}">
+        <input class="t-cbg"  type="number" step="0.1"  value="">
+        <input class="c-cbg"  type="number" step="0.1"  value="${tx.cap?.cbg??''}"  placeholder="none">
+        <input class="m-cbg"  type="number" step="0.1"  value="${tx.min?.cbg??''}"  placeholder="none">
+      </div>
+    </div>
+    <div class="vital-help">Tip: <strong>Target</strong> pins a vital by setting Min = Max = Target. Leave Min/Max blank for “no limit”.</div>
+
+    <div class="divider"></div>
+
+    <div class="inline-line">
+      <span class="group-h">Pulse</span>
+      <label>Rate
+        <select class="set-hr-rate">
+          <option value="">(no change)</option>
+          <option value="normal">normal</option>
+          <option value="tachycardic">tachycardic</option>
+          <option value="bradycardic">bradycardic</option>
+          <option value="absent">absent</option>
+        </select>
+      </label>
+      <label>Rhythm
+        <select class="set-hr-rhythm">
+          <option value="">(no change)</option>
+          <option value="regular">regular</option>
+          <option value="irregular">irregular</option>
+          <option value="absent">absent</option>
+        </select>
+      </label>
+      <label>Quality
+        <select class="set-hr-quality">
+          <option value="">(no change)</option>
+          <option value="normal">normal</option>
+          <option value="weak">weak</option>
+          <option value="thready">thready</option>
+          <option value="bounding">bounding</option>
+          <option value="absent">absent</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="inline-line">
+      <span class="group-h">Resp</span>
+      <label>Rate
+        <select class="set-rr-rate">
+          <option value="">(no change)</option>
+          <option value="normal">normal</option>
+          <option value="tachypneic">tachypneic</option>
+          <option value="bradypneic">bradypneic</option>
+          <option value="absent">absent</option>
+        </select>
+      </label>
+      <label>Rhythm
+        <select class="set-rr-rhythm">
+          <option value="">(no change)</option>
+          <option value="regular">regular</option>
+          <option value="irregular">irregular</option>
+          <option value="absent">absent</option>
+        </select>
+      </label>
+      <label>Quality
+        <select class="set-rr-quality">
+          <option value="">(no change)</option>
+          <option value="normal">normal</option>
+          <option value="shallow">shallow</option>
+          <option value="labored">labored</option>
+          <option value="absent">absent</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="inline-line">
+      <span class="group-h">Skin</span>
+      <label>Color
+        <select class="set-skin-color">
+          <option value="">(no change)</option>
+          <option value="normal">normal</option>
+          <option value="pink">pink</option>
+          <option value="pale">pale</option>
+          <option value="flushed">flushed</option>
+          <option value="cyanotic">cyanotic</option>
+          <option value="mottled">mottled</option>
+          <option value="jaundiced">jaundiced</option>
+        </select>
+      </label>
+      <label>Temp
+        <select class="set-skin-temp">
+          <option value="">(no change)</option>
+          <option value="warm">warm</option>
+          <option value="hot">hot</option>
+          <option value="cool">cool</option>
+          <option value="cold">cold</option>
+        </select>
+      </label>
+      <label>Moisture
+        <select class="set-skin-moist">
+          <option value="">(no change)</option>
+          <option value="dry">dry</option>
+          <option value="normal">normal</option>
+          <option value="moist">moist</option>
+          <option value="clammy">clammy</option>
+          <option value="diaphoretic">diaphoretic</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="divider"></div>
+    <div class="row" style="align-items:center">
+      <label class="switch" title="Show an URGENT popup when this treatment is activated">
+        <input class="urgent" type="checkbox">
+        <span>Show URGENT popup when activated</span>
+      </label>
+    </div>
+    <div class="row">
+      <button type="button" class="btn" data-edit-urgent>Edit URGENT Message</button>
+      <span class="muted urgent-preview"></span>
+    </div>
+  </div>
+`;
+
+const editBtn = box.querySelector('[data-edit-urgent]');
+if (editBtn) editBtn.addEventListener('click', ()=> openEditUrgentModal(i));
 const preview = box.querySelector('.urgent-preview');
 if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
-      <div class="row hdr">
-        <button class="icon-btn tgl" type="button" aria-label="Toggle details" aria-expanded="${!tx._collapsed ? 'true' : 'false'}">${tx._collapsed ? '►' : '▼'}</button>
-        <label style="flex:2">Label <input class="label" value="${tx.label||''}"></label>
-        <label style="flex:1">ID <input class="id" value="${tx.id||''}"></label>
-        <label style="flex:1">Mode <select class="mode">
-          <option value="toggle" ${tx.mode==='toggle'?'selected':''}>toggle</option>
-          <option value="oneShot" ${tx.mode==='oneShot'?'selected':''}>oneShot</option></select></label>
-        <label style="flex:0" title="Background color when OFF">
-            BG <input class="bg" type="color" value="${tx.bg || '#fafafa'}"
-                style="width:46px;padding:0;border:0;background:transparent">
-        </label>
-        <label style="flex:0" title="Background color when ON">
-            BG On <input class="bg-on" type="color" value="${tx.bgOn || tx.bg || '#c7f7c7'}"
-               style="width:60px;padding:0;border:0;background:transparent">
-        </label>
-        <label style="flex:0" title="Flash between BG On and BG while ON">
-          Flash <input class="flash-on" type="checkbox" ${tx.flashOn ? 'checked' : ''}>
-        </label>
-        <label style="width:90px" title="Higher runs first">
-            Priority <input class="prio" type="number" value="${tx.priority??0}">
-        </label>
-        <label style="width:110px" title="If set, this treatment’s per-vital deltas override lower priority deltas">
-            Override <input class="ovr" type="checkbox" ${tx.override?'checked':''}>
-        </label>
-
-        <button class="btn danger del" type="button">Delete</button>
-      </div>
-
-      <div class="body">
- <div class="vital-rows">
-  <div class="vital-row head">
-    <div></div><div>Δ per second</div><div>Target</div><div>Max (cap)</div><div>Min (floor)</div>
-  </div>
-
-  <div class="vital-row">
-    <div class="vlabel">HR</div>
-    <input class="e-hr"  type="number" step="0.01" value="${tx.eff?.hr||0}">
-    <input class="t-hr"  type="number" step="0.1"  value="">
-    <input class="c-hr"  type="number" step="0.1"  value="${tx.cap?.hr??''}"  placeholder="none">
-    <input class="m-hr"  type="number" step="0.1"  value="${tx.min?.hr??''}"  placeholder="none">
-  </div>
-
-  <div class="vital-row">
-    <div class="vlabel">RR</div>
-    <input class="e-rr"  type="number" step="0.01" value="${tx.eff?.rr||0}">
-    <input class="t-rr"  type="number" step="0.1"  value="">
-    <input class="c-rr"  type="number" step="0.1"  value="${tx.cap?.rr??''}"  placeholder="none">
-    <input class="m-rr"  type="number" step="0.1"  value="${tx.min?.rr??''}"  placeholder="none">
-  </div>
-
-  <div class="vital-row">
-    <div class="vlabel">SpO₂</div>
-    <input class="e-spo2"  type="number" step="0.01" value="${tx.eff?.spo2||0}">
-    <input class="t-spo2"  type="number" step="0.1"  value="">
-    <input class="c-spo2"  type="number" step="0.1"  value="${tx.cap?.spo2??''}"  placeholder="none">
-    <input class="m-spo2"  type="number" step="0.1"  value="${tx.min?.spo2??''}"  placeholder="none">
-  </div>
-
-  <div class="vital-row">
-    <div class="vlabel">SBP</div>
-    <input class="e-sbp"  type="number" step="0.01" value="${tx.eff?.sbp||0}">
-    <input class="t-sbp"  type="number" step="0.1"  value="">
-    <input class="c-sbp"  type="number" step="0.1"  value="${tx.cap?.sbp??''}"  placeholder="none">
-    <input class="m-sbp"  type="number" step="0.1"  value="${tx.min?.sbp??''}"  placeholder="none">
-  </div>
-
-  <div class="vital-row">
-    <div class="vlabel">DBP</div>
-    <input class="e-dbp"  type="number" step="0.01" value="${tx.eff?.dbp||0}">
-    <input class="t-dbp"  type="number" step="0.1"  value="">
-    <input class="c-dbp"  type="number" step="0.1"  value="${tx.cap?.dbp??''}"  placeholder="none">
-    <input class="m-dbp"  type="number" step="0.1"  value="${tx.min?.dbp??''}"  placeholder="none">
-  </div>
-
-  <div class="vital-row">
-    <div class="vlabel">CBG</div>
-    <input class="e-cbg"  type="number" step="0.01" value="${tx.eff?.cbg||0}">
-    <input class="t-cbg"  type="number" step="0.1"  value="">
-    <input class="c-cbg"  type="number" step="0.1"  value="${tx.cap?.cbg??''}"  placeholder="none">
-    <input class="m-cbg"  type="number" step="0.1"  value="${tx.min?.cbg??''}"  placeholder="none">
-  </div>
-</div>
-<div class="vital-help">
-  Tip: <strong>Target</strong> pins a vital by setting Min = Max = Target. Leave Min/Max blank for “no limit”.
-</div>
-
-        <div class="divider"></div>
-
-<div class="inline-line">
-  <span class="group-h">Pulse</span>
-  <label>Rate
-    <select class="set-hr-rate">
-      <option value="">(no change)</option>
-      <option value="normal">normal</option>
-      <option value="tachycardic">tachycardic</option>
-      <option value="bradycardic">bradycardic</option>
-      <option value="absent">absent</option>
-    </select>
-  </label>
-  <label>Rhythm
-    <select class="set-hr-rhythm">
-      <option value="">(no change)</option>
-      <option value="regular">regular</option>
-      <option value="irregular">irregular</option>
-      <option value="absent">absent</option>
-    </select>
-  </label>
-  <label>Quality
-    <select class="set-hr-quality">
-      <option value="">(no change)</option>
-      <option value="normal">normal</option>
-      <option value="weak">weak</option>
-      <option value="thready">thready</option>
-      <option value="bounding">bounding</option>
-      <option value="absent">absent</option>
-    </select>
-  </label>
-</div>
-
-<div class="inline-line">
-  <span class="group-h">Resp</span>
-  <label>Rate
-    <select class="set-rr-rate">
-      <option value="">(no change)</option>
-      <option value="normal">normal</option>
-      <option value="tachypneic">tachypneic</option>
-      <option value="bradypneic">bradypneic</option>
-      <option value="absent">absent</option>
-    </select>
-  </label>
-  <label>Rhythm
-    <select class="set-rr-rhythm">
-      <option value="">(no change)</option>
-      <option value="regular">regular</option>
-      <option value="irregular">irregular</option>
-      <option value="absent">absent</option>
-    </select>
-  </label>
-  <label>Quality
-    <select class="set-rr-quality">
-      <option value="">(no change)</option>
-      <option value="normal">normal</option>
-      <option value="shallow">shallow</option>
-      <option value="labored">labored</option>
-      <option value="absent">absent</option>
-    </select>
-  </label>
-</div>
-
-<div class="inline-line">
-  <span class="group-h">Skin</span>
-  <label>Color
-    <select class="set-skin-color">
-      <option value="">(no change)</option>
-      <option value="normal">normal</option>
-      <option value="pink">pink</option>
-      <option value="pale">pale</option>
-      <option value="flushed">flushed</option>
-      <option value="cyanotic">cyanotic</option>
-      <option value="mottled">mottled</option>
-      <option value="jaundiced">jaundiced</option>
-    </select>
-  </label>
-  <label>Temp
-    <select class="set-skin-temp">
-      <option value="">(no change)</option>
-      <option value="warm">warm</option>
-      <option value="hot">hot</option>
-      <option value="cool">cool</option>
-      <option value="cold">cold</option>
-    </select>
-  </label>
-  <label>Moisture
-    <select class="set-skin-moist">
-      <option value="">(no change)</option>
-      <option value="dry">dry</option>
-      <option value="normal">normal</option>
-      <option value="moist">moist</option>
-      <option value="clammy">clammy</option>
-      <option value="diaphoretic">diaphoretic</option>
-    </select>
-  </label>
-</div>
-<div class="divider"></div>
-<div class="row" style="align-items:center">
-  <label class="switch" title="Show an URGENT popup when this treatment is activated">
-    <input class="urgent" type="checkbox">
-    <span>Show URGENT popup when activated</span>
-  </label>
-</div>
-<div class="row">
-  <button type="button" class="btn" data-edit-urgent>Edit URGENT Message</button>
-  <span class="muted urgent-preview"></span>
-</div>
-
-</div>`;
 
     const q=s=>box.querySelector(s);
 
@@ -1368,21 +1390,6 @@ const bgOnEl = q('.bg-on'); if (bgOnEl) bgOnEl.onchange = () => { tx.bgOn = bgOn
 // URGENT controls
 const urgEl = q('.urgent');
 if (urgEl){ urgEl.checked = !!tx.urgent; urgEl.onchange = ()=>{ tx.urgent = !!urgEl.checked; save(); }; }
-
-const urgMsgEl = q('.urgent-msg');
-if (urgMsgEl){
-  urgMsgEl.value = tx.urgentMsg || '';
-
-  urgMsgEl.addEventListener('focus', () => { editingUrgent = true; });
-  urgMsgEl.addEventListener('input', () => {
-    tx.urgentMsg = urgMsgEl.value;
-  });
-  urgMsgEl.addEventListener('blur', () => {
-    editingUrgent = false;
-    save();
-  });
-}
-
 
 // Δ per second + Max
 ['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
@@ -1932,6 +1939,10 @@ if (audioBtnsHost){
 
 safeOn(byId('urgent-close'),'click',closeUrgent);
 safeOn(byId('urgent-backdrop'),'click',closeUrgent);
+const editBtn = box.querySelector('[data-edit-urgent]');
+if (editBtn) editBtn.addEventListener('click', ()=> openEditUrgentModal(i));
+const preview = box.querySelector('.urgent-preview');
+if (preview) preview.textContent = tx.urgentMsg ? tx.urgentMsg : '(No urgent message set)';
 
 // BUILD: add-audio button
 safeOn(byId('add-audio'),'click',()=>{
@@ -2003,10 +2014,6 @@ document.addEventListener('DOMContentLoaded', ()=>{ wire(); load(); });
       <button id="urgent-close" class="btn">Close</button>
     </div>
   </div>
-</div>
-<!-- URGENT modal -->
-<div id="urgent-modal" class="modal" aria-hidden="true">
-  ...
 </div>
 
 <!-- EDIT URGENT MODAL -->
