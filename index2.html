@@ -248,29 +248,24 @@ header .title{
 </header>
 
 
-<!-- BUILD -->
+<<!-- BUILD -->
 <div class="wrap" id="build">
   <div class="panel">
     <div class="stickybar row">
-  <span class="note-start">Click start when student enters scenario room and sees the patient</span>
-  <button id="start" class="btn success" style="font-size:15px">Start</button>
-  <button id="pause" class="btn" style="font-size:15px">Pause</button>
-  <button id="reset" class="btn danger" style="font-size:15px">Reset</button>
-  <button id="clear-all" class="btn danger" style="font-size:15px">Clear All</button>
+      <span class="note-start">Click start when student enters scenario room and sees the patient</span>
+      <button id="start" class="btn success" style="font-size:15px">Start</button>
+      <button id="pause" class="btn" style="font-size:15px">Pause</button>
+      <button id="reset" class="btn danger" style="font-size:15px">Reset</button>
+      <button id="clear-all" class="btn danger" style="font-size:15px">Clear All</button>
 
-  <div class="timer-wrap">
-    <div id="timer" class="big-timer">15:00</div>
-    <div class="timer-caption">Scenario Time Remaining</div>
-  </div>
-</div>
+      <div class="timer-wrap">
+        <div id="timer" class="big-timer">15:00</div>
+        <div class="timer-caption">Scenario Time Remaining</div>
+      </div>
+    </div>
 
-
-  <div class="timer-wrap">
-    <div id="timer" class="big-timer">15:00</div>
-    <div class="timer-caption">Scenario Time Remaining</div>
-  </div>
-</div>
     <div class="content">
+
       <!-- Removed the left-side build Monitor preview as requested -->
 
       <div class="divider"></div>
@@ -543,12 +538,13 @@ header .title{
 const lockedScenarios = [
   {
     label: 'TSOP1',
-    data: `v1.sTlZjVeI1sOiAhLFb6HGhg.T8oMaxnQc...<rest of your very long string>...`
+    data: 'v1.sTlZjVeI1sOiAhLFb6HGhg.T8oMaxnQccd6YO6c.nKdK32x8A...' // <-- full, unbroken v1.* string
   },
   { label: 'Slot 2', data: '' },
   { label: 'Slot 3', data: '' },
   { label: 'Slot 4', data: '' }
 ];
+
 
 const te = new TextEncoder(), td = new TextDecoder();
 function b64u(bytes){
@@ -1987,6 +1983,8 @@ if (audioBtnsHost){
         btn.classList.toggle('success', audioLoop);
   }
 });
+
+safeOn(byId('clear-all'),'click', clearAll);
 
 safeOn(byId('urgent-close'),'click',closeUrgent);
 safeOn(byId('urgent-backdrop'),'click',closeUrgent);
