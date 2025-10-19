@@ -1,0 +1,373 @@
+{
+  "meta": {
+    "title": "TSOP #1",
+    "version": 1,
+    "author": "H. Hall"
+  },
+  "text": {
+    "dispatch": "Respond to Barber Park in reference to a fall. Reported that the patient fell down some stairs and is still on the ground.",
+    "gi": "Patient is sitting upright, but is leaning against an object. Patient is awake, but does not immediately track the EMT walking up. The patient does not know what year it is and thinks he is at home. Patient is also slow to respond to questions and continually drops their head and falls asleep when not being talked to.\n\nIf asked, brother is nearby to help be a historian.\n\nS: A\nA: Aspirin\nM: Novolog, Metformin, Eliquis\nP: Diabetes, A-fib\nL: 6 hours prior\nE: Walking to get food after taking shot.",
+    "avpu": "Alert, but AMS",
+    "noi": "Patient states they fell, but unsure where or how. (Evaluator informs student that the patient fell down 6 concrete steps)",
+    "cspine": "Injuries consistent with significant MOI"
+  },
+  "flags": {
+    "als": false
+  },
+  "timing": {
+    "minutes": 15
+  },
+  "injects": [
+    {
+      "id": "inj1760382770399",
+      "t": 300,
+      "name": "Seizure! ",
+      "dur": 30,
+      "hideAfter": 30,
+      "triggers": [],
+      "bg": "#e40716"
+    },
+    {
+      "id": "inj1760382793643",
+      "t": 330,
+      "name": "Postictal",
+      "dur": 120,
+      "hideAfter": 120,
+      "triggers": [],
+      "bg": "#1adb1d"
+    }
+  ],
+  "vitals": {
+    "hr": 105,
+    "rr": 13,
+    "spo2": 95,
+    "sbp": 118,
+    "dbp": 84,
+    "cbg": 40,
+    "skinColor": "pale",
+    "skinTemp": "cool",
+    "skinMoist": "clammy",
+    "hrRate": "tachycardic",
+    "hrRhythm": "regular",
+    "hrQuality": "normal",
+    "rrRate": "normal",
+    "rrRhythm": "regular",
+    "rrQuality": "normal"
+  },
+  "sample": {
+    "s": "Altered mental status",
+    "a": "Aspirin",
+    "m": "Novolog, Metformin, Eliquis",
+    "p": "Diabetes, A-fib",
+    "l": "6 Hours Prior",
+    "e": "Walking to get food after taking shot",
+    "phys": "Abrasions to arms and hands\nAbrasions on legs\nSwollen and deformed left ankle with positive PMS"
+  },
+  "treatments": [
+    {
+      "id": "tx1760383955568",
+      "label": "Oxygen",
+      "mode": "toggle",
+      "eff": {
+        "spo2": 1
+      },
+      "cap": {
+        "spo2": 98,
+        "hr": 0
+      },
+      "set": {
+        "skinMoist": null,
+        "skinColor": null
+      },
+      "_collapsed": true,
+      "bg": "#cecfce",
+      "flashOn": true,
+      "priority": 1,
+      "bgOn": "#0de727",
+      "min": {
+        "spo2": 98,
+        "hr": 0,
+        "rr": 0
+      },
+      "urgentMsg": ""
+    },
+    {
+      "id": "tx1760384020381",
+      "label": "Oral Glucose",
+      "mode": "toggle",
+      "eff": {
+        "cbg": -0.5,
+        "rr": -0.5,
+        "hr": 1,
+        "spo2": -0.5,
+        "sbp": 1,
+        "dbp": 0.5
+      },
+      "cap": {
+        "cbg": 50,
+        "hr": 125,
+        "rr": 7,
+        "spo2": 98,
+        "sbp": 138,
+        "dbp": 96
+      },
+      "_collapsed": true,
+      "bg": "#f27373",
+      "flashOn": true,
+      "priority": 2,
+      "bgOn": "#dd0808",
+      "min": {
+        "hr": 100,
+        "rr": 7,
+        "spo2": 90,
+        "cbg": 20
+      },
+      "set": {
+        "skinColor": "cyanotic",
+        "rrRhythm": "irregular",
+        "rrQuality": "labored"
+      },
+      "urgent": true,
+      "urgentMsg": "Ensure the student is informed the patient is now gagging."
+    },
+    {
+      "id": "tx1760384060878",
+      "label": "Glucagon",
+      "mode": "toggle",
+      "eff": {
+        "cbg": 0.5,
+        "hr": 0.5,
+        "rr": 1,
+        "spo2": 0.5,
+        "sbp": 1,
+        "dbp": 0.5
+      },
+      "cap": {
+        "cbg": 95,
+        "hr": 90,
+        "rr": 14,
+        "spo2": 98,
+        "sbp": 124,
+        "dbp": 86
+      },
+      "_collapsed": true,
+      "bg": "#cecfce",
+      "flashOn": true,
+      "priority": 3,
+      "bgOn": "#2ee708",
+      "min": {
+        "hr": 90,
+        "rr": 0,
+        "sbp": 124,
+        "dbp": 86
+      },
+      "set": {
+        "skinColor": "pink",
+        "skinTemp": "cool",
+        "skinMoist": "moist",
+        "rrRate": "normal",
+        "rrRhythm": "regular",
+        "rrQuality": "normal",
+        "hrQuality": "normal",
+        "hrRhythm": "regular",
+        "hrRate": "normal"
+      }
+    },
+    {
+      "id": "tx1760384082372",
+      "label": "Good Tx During Seizure",
+      "mode": "toggle",
+      "eff": {
+        "hr": -0.5,
+        "rr": -0.5,
+        "spo2": -0.5,
+        "sbp": 8,
+        "dbp": 2,
+        "cbg": -0.5
+      },
+      "cap": {
+        "sbp": 134,
+        "dbp": 90
+      },
+      "min": {
+        "hr": 75,
+        "rr": 10,
+        "spo2": 94,
+        "cbg": 75
+      },
+      "set": {
+        "hrRate": "bradycardic",
+        "hrRhythm": "regular",
+        "hrQuality": "normal",
+        "rrRate": "normal",
+        "rrRhythm": "irregular",
+        "rrQuality": "shallow",
+        "skinColor": "pale",
+        "skinTemp": "cool",
+        "skinMoist": "moist"
+      },
+      "_collapsed": true,
+      "bg": "#cecfce",
+      "flashOn": true,
+      "priority": 2,
+      "bgOn": "#0fef0b"
+    },
+    {
+      "id": "tx1760384316450",
+      "label": "Bad Tx During Seizure",
+      "mode": "toggle",
+      "eff": {
+        "hr": -1,
+        "rr": -1,
+        "spo2": -0.5,
+        "sbp": -4,
+        "dbp": -2,
+        "cbg": -1
+      },
+      "cap": {
+        "sbp": 136,
+        "dbp": 92
+      },
+      "min": {
+        "hr": 40,
+        "rr": 6,
+        "spo2": 85,
+        "cbg": 55,
+        "sbp": 90,
+        "dbp": 70
+      },
+      "set": {
+        "hrRate": "bradycardic",
+        "hrRhythm": "regular",
+        "hrQuality": "weak",
+        "rrRate": "bradypneic",
+        "rrRhythm": "irregular",
+        "rrQuality": "shallow",
+        "skinColor": "cyanotic",
+        "skinTemp": "cool",
+        "skinMoist": "clammy"
+      },
+      "_collapsed": true,
+      "bg": "#df7c81",
+      "flashOn": true,
+      "priority": 2,
+      "bgOn": "#ee1717"
+    },
+    {
+      "id": "tx1760384498850",
+      "label": "Good Postictal Tx",
+      "mode": "toggle",
+      "eff": {
+        "hr": 1,
+        "rr": 0.5,
+        "spo2": 0.5,
+        "sbp": 6,
+        "dbp": 2,
+        "cbg": 1
+      },
+      "cap": {
+        "hr": 75,
+        "rr": 13,
+        "spo2": 98,
+        "sbp": 130,
+        "dbp": 84,
+        "cbg": 93
+      },
+      "min": {
+        "hr": null,
+        "rr": 12,
+        "spo2": 96,
+        "cbg": null
+      },
+      "set": {
+        "skinMoist": "moist",
+        "skinColor": "pink",
+        "skinTemp": "warm",
+        "rrQuality": "normal",
+        "rrRhythm": "regular",
+        "rrRate": "normal",
+        "hrQuality": "normal",
+        "hrRhythm": "regular",
+        "hrRate": "normal"
+      },
+      "_collapsed": true,
+      "bg": "#cecfce",
+      "flashOn": true,
+      "priority": 4,
+      "bgOn": "#18e60a"
+    },
+    {
+      "id": "tx1760384634572",
+      "label": "KILL SWITCH",
+      "mode": "toggle",
+      "eff": {
+        "hr": -5,
+        "rr": -2,
+        "spo2": -2,
+        "sbp": -12,
+        "dbp": -8,
+        "cbg": -1
+      },
+      "cap": {
+        "hr": 0,
+        "rr": 0,
+        "cbg": 30,
+        "sbp": 0,
+        "spo2": 70,
+        "dbp": 0
+      },
+      "min": {
+        "hr": 0,
+        "rr": 0,
+        "spo2": 70,
+        "sbp": 0,
+        "dbp": 0,
+        "cbg": 25
+      },
+      "set": {
+        "hrRate": "bradycardic",
+        "hrRhythm": "absent",
+        "hrQuality": "absent",
+        "rrRate": "absent",
+        "rrRhythm": "absent",
+        "rrQuality": "absent",
+        "skinColor": "cyanotic",
+        "skinMoist": "clammy",
+        "skinTemp": "cold"
+      },
+      "_collapsed": true,
+      "bg": "#de7d7d",
+      "flashOn": true,
+      "override": false,
+      "priority": 5,
+      "bgOn": "#f31616"
+    }
+  ],
+  "prompts": [],
+  "opqrst": {
+    "o": "N/A",
+    "p": "N/A",
+    "q": "N/A",
+    "r": "N/A",
+    "s": "N/A",
+    "t": "N/A"
+  },
+  "audios": [
+    {
+      "id": "aud1760492576009",
+      "label": "Normal Lung Sounds",
+      "name": "Normal LS.mp3",
+      "bg": "#cecfce",
+      "bgOn": "#c7f7c7",
+      "flashOn": true
+    },
+    {
+      "id": "aud1760492576857",
+      "label": "Agonal",
+      "name": "AgonalBreathing (1).mp3",
+      "bg": "#e97777",
+      "bgOn": "#ef1f1f",
+      "flashOn": true
+    }
+  ]
+}

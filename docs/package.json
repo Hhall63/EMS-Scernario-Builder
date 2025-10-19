@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "pretest": "node -v && npm -v",
+    "test": "npm run test:unit",
+    "test:unit": "jest --runInBand --coverage --reporters=default --reporters=jest-junit",
+    "test:e2e": "playwright test --reporter=list,junit",
+    "validate:json": "node scripts/validate-scenarios.js",
+    "lint": "eslint \"**/*.{js,jsx,ts,tsx}\" --max-warnings=0",
+    "test:all": "npm run validate:json && npm run lint && npm run test:unit && npm run test:e2e"
+  }
+}
