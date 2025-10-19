@@ -1066,8 +1066,8 @@ if (physEl){
   if (alsP) alsP.classList.toggle('hidden', !scenario.flags.als);
 
   // Rebuild audio buttons, then sync their visual state (playing/idle)
-  renderAudioButtons();
-  updateAudioButtonStates();
+  if (typeof renderAudioButtons === 'function') renderAudioButtons();
+  if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
 
 
 function renderAll(){ renderStatic(); renderInjects(); }
