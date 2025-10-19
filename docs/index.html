@@ -18,13 +18,14 @@
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   .three{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-  button.btn{border:1px solid var(--b);background:#fafafa;border-radius:10px;padding:8px 10px;cursor:pointer}
-  button.primary{background:var(--primary);color:#fff;border-color:#1d4ed8}
-  button.success{background:var(--green);color:#fff;border-color:#12833b}
-  /* active treatment: black, bold text */
-  .btn.tx-on { color:#000 !important; font-weight:700; }
-  button.danger{background:var(--red);color:#fff;border-color:#b91c1c}
- /* Badge chip */
+button.btn{border:1px solid var(--b);background:#fafafa;border-radius:10px;padding:8px 10px;cursor:pointer}
+button.primary{background:var(--primary);color:#fff;border-color:#1d4ed8}
+button.success{background:var(--green);color:#fff;border-color:#12833b}
+/* active treatment: black, bold text */
+.btn.tx-on { color:#000 !important; font-weight:700; }
+button.danger{background:var(--red);color:#fff;border-color:#b91c1c}
+button.muted{opacity:.6;cursor:not-allowed}
+/* Badge chip */
 .badge{
   display:inline-flex;
   align-items:center;
@@ -167,6 +168,16 @@
 .kv.collapsed .body{display:none}
 .icon-btn{background:transparent;border:0;cursor:pointer;padding:4px 6px;font-size:16px;line-height:1}
 
+details.builder-section{margin-bottom:16px;padding:12px;border:1px solid var(--bb);border-radius:10px;background:#fafbff}
+details.builder-section summary{list-style:none;display:flex;align-items:center;gap:12px;justify-content:space-between;font-weight:600;cursor:pointer}
+details.builder-section summary::-webkit-details-marker{display:none}
+details.builder-section summary::marker{display:none}
+details.builder-section[open] summary{border-bottom:1px solid var(--bb);padding-bottom:6px;margin-bottom:12px}
+details.builder-section .section-body{display:grid;gap:12px}
+.display-toggle{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.display-toggle input{accent-color:var(--primary)}
+.display-toggle-row{display:flex;flex-wrap:wrap;gap:10px;margin-left:auto}
+
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 /* Left column spacing for Physical under AVPU */
 #p-physical{padding-top:4px}
@@ -242,19 +253,10 @@ header .title{
     <button id="mode-play" class="btn primary">Play</button>
     <button id="export" class="btn">Export JSON</button>
     <label id="import-label" class="badge" style="cursor:pointer" title="Click to select a file">
-  Import JSON
-  <input id="import" type="file" accept="application/json" style="display:none">
-</label>
-
-<!-- INSERT: Load by path controls -->
-<label class="badge" title="Relative path under this site">
-  Load by path
-  <input id="scenario-path" type="text" placeholder="scenarios/example.json" style="width:220px">
-</label>
-<button id="load-scenario-btn" class="btn">Load</button>
-<!-- /INSERT -->
-
-<span class="badge">Autosave: <span id="autosave">idle</span></span>
+      Import JSON
+      <input id="import" type="file" accept="application/json" style="display:none">
+    </label>
+    <span class="badge">Autosave: <span id="autosave">idle</span></span>
   </div>
 </header>
 
@@ -299,50 +301,81 @@ header .title{
       </div>
 
       <div class="divider"></div>
-      <h3>Text</h3>
-      <div class="grid">
-        <label>Dispatch <textarea id="txt-dispatch" rows="2"></textarea></label>
-        <label>General Impression <textarea id="txt-gi" rows="2"></textarea></label>
-      </div>
-      <div class="grid">
-        <label>AVPU <input id="txt-avpu" type="text"></label>
-        <label>NOI/MOI <input id="txt-noi" type="text"></label>
-        <label>C-spine <input id="txt-cspine" type="text"></label>
-      </div>
+      <details class="builder-section" data-section="text" open>
+        <summary>
+          <span>Text</span>
+          <div class="display-toggle-row">
+            <label class="display-toggle"><input type="checkbox" data-display-key="text" checked> Dispatch/Impression</label>
+            <label class="display-toggle"><input type="checkbox" data-display-key="backstory" checked> Backstory</label>
+            <label class="display-toggle"><input type="checkbox" data-display-key="talkingPoints" checked> Talking Points</label>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="grid">
+            <label>Dispatch <textarea id="txt-dispatch" rows="2"></textarea></label>
+            <label>General Impression <textarea id="txt-gi" rows="2"></textarea></label>
+          </div>
+          <div class="grid">
+            <label>AVPU <input id="txt-avpu" type="text"></label>
+            <label>NOI/MOI <input id="txt-noi" type="text"></label>
+            <label>C-spine <input id="txt-cspine" type="text"></label>
+          </div>
+          <div class="grid" id="backstory-fields">
+            <label>Patient Backstory <textarea id="txt-backstory" rows="3" placeholder="One line per bullet"></textarea></label>
+            <label>Inject talking points <textarea id="txt-talkingpoints" rows="3" placeholder="One line per bullet"></textarea></label>
+          </div>
+        </div>
+      </details>
 
-      
+
       <div class="divider"></div>
-      <h3>SAMPLE History</h3>
-      <div class="grid">
-        <label>S (Symptoms) <textarea id="s-s" rows="2" placeholder="Chief complaint and associated symptoms"></textarea></label>
-        <label>A (Allergies) <textarea id="s-a" rows="2" placeholder="Drug, food, environmental"></textarea></label>
-      </div>
-      <div class="grid">
-        <label>M (Medications) <textarea id="s-m" rows="2" placeholder="Name, dose, schedule, compliance"></textarea></label>
-        <label>P (Pertinent history) <textarea id="s-p" rows="2" placeholder="Medical/surgical history, recent events"></textarea></label>
-      </div>
-      <div class="grid">
-        <label>L (Last oral intake) <textarea id="s-l" rows="2" placeholder="Food/fluids, time, quantity"></textarea></label>
-        <label>E (Events leading up) <textarea id="s-e" rows="2" placeholder="What happened, mechanism"></textarea></label>
-      </div>
-      <div class="grid">
-        <label>Physical Findings <textarea id="phys" rows="3" placeholder="Focused assessment notes"></textarea></label>
-      </div>
-<div class="divider"></div>
-      <div class="divider"></div>
-        <h3>OPQRST</h3>
-        <div class="grid">
-        <label>O (Onset)        <textarea id="o-o" rows="2" placeholder="When it started, sudden/gradual"></textarea></label>
-        <label>P (Provocation)  <textarea id="o-p" rows="2" placeholder="Better/worse with..."></textarea></label>
+      <details class="builder-section" data-section="sample" open>
+        <summary>
+          <span>SAMPLE & Physical</span>
+          <div class="display-toggle-row">
+            <label class="display-toggle"><input type="checkbox" data-display-key="sample" checked> SAMPLE on Play</label>
+            <label class="display-toggle"><input type="checkbox" data-display-key="physical" checked> Physical on Play</label>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="grid">
+            <label>S (Symptoms) <textarea id="s-s" rows="2" placeholder="Chief complaint and associated symptoms"></textarea></label>
+            <label>A (Allergies) <textarea id="s-a" rows="2" placeholder="Drug, food, environmental"></textarea></label>
+          </div>
+          <div class="grid">
+            <label>M (Medications) <textarea id="s-m" rows="2" placeholder="Name, dose, schedule, compliance"></textarea></label>
+            <label>P (Pertinent history) <textarea id="s-p" rows="2" placeholder="Medical/surgical history, recent events"></textarea></label>
+          </div>
+          <div class="grid">
+            <label>L (Last oral intake) <textarea id="s-l" rows="2" placeholder="Food/fluids, time, quantity"></textarea></label>
+            <label>E (Events leading up) <textarea id="s-e" rows="2" placeholder="What happened, mechanism"></textarea></label>
+          </div>
+          <div class="grid">
+            <label>Physical Findings <textarea id="phys" rows="3" placeholder="Focused assessment notes"></textarea></label>
+          </div>
         </div>
-        <div class="grid">
-        <label>Q (Quality)      <textarea id="o-q" rows="2" placeholder="Sharp, dull, pressure..."></textarea></label>
-        <label>R (Region/Rad.)  <textarea id="o-r" rows="2" placeholder="Where, does it travel"></textarea></label>
+      </details>
+
+      <details class="builder-section" data-section="opqrst" open>
+        <summary>
+          <span>OPQRST</span>
+          <label class="display-toggle"><input type="checkbox" data-display-key="opqrst" checked> Display on Play</label>
+        </summary>
+        <div class="section-body">
+          <div class="grid">
+            <label>O (Onset)        <textarea id="o-o" rows="2" placeholder="When it started, sudden/gradual"></textarea></label>
+            <label>P (Provocation)  <textarea id="o-p" rows="2" placeholder="Better/worse with..."></textarea></label>
+          </div>
+          <div class="grid">
+            <label>Q (Quality)      <textarea id="o-q" rows="2" placeholder="Sharp, dull, pressure..."></textarea></label>
+            <label>R (Region/Rad.)  <textarea id="o-r" rows="2" placeholder="Where, does it travel"></textarea></label>
+          </div>
+          <div class="grid">
+            <label>S (Severity)     <textarea id="o-s" rows="2" placeholder="0–10 or descriptive"></textarea></label>
+            <label>T (Time)         <textarea id="o-t" rows="2" placeholder="Progression, duration"></textarea></label>
+          </div>
         </div>
-        <div class="grid">
-        <label>S (Severity)     <textarea id="o-s" rows="2" placeholder="0–10 or descriptive"></textarea></label>
-        <label>T (Time)         <textarea id="o-t" rows="2" placeholder="Progression, duration"></textarea></label>
-        </div>
+      </details>
 
     <div class="divider"></div>
     <h3>Audio Cues</h3>
@@ -488,7 +521,7 @@ header .title{
   </div>
 </div>
     <div class="content">
-      <div class="grid">
+      <div id="play-text-section" class="grid">
         <div>
           <h3>Dispatch</h3>
           <div id="p-dispatch" class="content"></div>
@@ -503,7 +536,7 @@ header .title{
 
 <!-- AVPU + Physical (left) and SAMPLE/OPQRST (right) -->
 <div class="grid">
-  <div>
+  <div id="play-ancillary-section">
     <h3>AVPU / NOI-MOI / C-spine</h3>
     <div id="p-ancillary" class="content"></div>
 
@@ -511,12 +544,12 @@ header .title{
     <div id="p-physical" class="content"></div>
   </div>
 
-  <div>
+  <div id="play-sampleopqrst-section">
     <h3>SAMPLE & OPQRST</h3>
     <div class="content">
       <div class="two-col">
-        <div id="p-sample" class="col left"></div>
-        <div id="p-opqrst" class="col right"></div>
+        <div id="p-sample-wrap" class="col left"><div id="p-sample"></div></div>
+        <div id="p-opqrst-wrap" class="col right"><div id="p-opqrst"></div></div>
       </div>
     </div>
   </div>
@@ -659,25 +692,56 @@ function getAudioSrc(a){
 }
 
 /* ---------------- Scenario model ---------------- */
-let scenario = {
+const DEFAULT_SCENARIO = {
   meta:{title:"Scenario name",version:1,author:""},
-  text:{dispatch:"",gi:"",avpu:"",noi:"",cspine:""},
+  text:{
+    dispatch:"",gi:"",avpu:"",noi:"",cspine:"",
+    backstory:"",talkingPoints:"",
+    hospitalEta:"—"
+  },
   flags:{als:false},
   timing:{minutes:15},
-  injects:[], // {t:seconds,name}
+  injects:[],
   vitals:{
     hr:110,rr:26,spo2:88,sbp:98,dbp:62,cbg:120,
-    // new skin + descriptors
     skinColor:"normal", skinTemp:"warm", skinMoist:"dry",
     hrRate:"normal", hrRhythm:"regular", hrQuality:"normal",
     rrRate:"normal", rrRhythm:"regular", rrQuality:"normal"
   },
   sample:{s:"",a:"",m:"",p:"",l:"",e:"",phys:""},
   opqrst:{o:"",p:"",q:"",r:"",s:"",t:""},
-  audios:[],  // [{id,label,url}]
-  treatments:[], // {id,label,mode,eff{},cap{}}
-  prompts:[] // {type:'time'|'rule', ..., flashColor, beep, _activeStart}
+  audios:[],
+  treatments:[],
+  prompts:[],
+  apgar:{
+    one:{appearance:0,pulse:0,grimace:0,activity:0,respiration:0},
+    five:{appearance:0,pulse:0,grimace:0,activity:0,respiration:0}
+  },
+  apgarNotes:{
+    one:{appearance:"",pulse:"",grimace:"",activity:"",respiration:""},
+    five:{appearance:"",pulse:"",grimace:"",activity:"",respiration:""}
+  },
+  nbVitals:{
+    hr:140, rr:40, spo2:92, sbp:65, dbp:40, cbg:60,
+    skinColor:"pink", skinTemp:"warm", skinMoist:"normal",
+    hrRate:"normal", hrRhythm:"regular", hrQuality:"normal",
+    rrRate:"normal", rrRhythm:"regular", rrQuality:"normal"
+  },
+  nbTreatments:[],
+  displayOnPlay:{
+    text:true,
+    sample:true,
+    opqrst:true,
+    physical:true,
+    backstory:true,
+    talkingPoints:true,
+    apgar:true,
+    nbVitals:true,
+    nbTreatments:true
+  }
 };
+
+let scenario = JSON.parse(JSON.stringify(DEFAULT_SCENARIO));
 
 /* ---------------- Runtime state ---------------- */
 let currentAudioIdx = -1; // which audio button is currently playing (-1 = none)
@@ -816,7 +880,9 @@ function resetRun(){
   appliedInjects=[...(scenario.injects||[])].sort((a,b)=>a.t-b.t);
   firedInject.clear();
   triggeredOnce.clear();
-renderAll();
+  injectAutoOff = [];
+  buildTxButtons();
+  renderAll();
 }
 function start(){ if (running) return; running=true; interval=setInterval(tick,1000); }
 function pause(){ running=false; if(interval){ clearInterval(interval); interval=null; } }
@@ -858,91 +924,66 @@ function enforceCaps(){
 }
 
 function applyEffectsPerSecond(){
-  // small random walk on all vitals shown
-  const j=(v,m)=> v + (Math.random()*2-1)*m;
-  vitals.hr   = clamp(j(vitals.hr,.03),   0,190);
-  vitals.rr   = clamp(j(vitals.rr,.02),   0,50);
-  vitals.spo2 = clamp(j(vitals.spo2,.02), 0,100);
-  vitals.sbp  = clamp(j(vitals.sbp,.02),  0,200);
-  vitals.dbp  = clamp(j(vitals.dbp,.02),  0,130);
-  vitals.cbg  = clamp((vitals.cbg??scenario.vitals.cbg),  0,600); // ensure defined
-
   const vitKeys = ['hr','rr','spo2','sbp','dbp','cbg'];
 
-  // active treatments sorted by priority desc
-  const activeList = (scenario.treatments||[])
-    .filter(tx => activeTx[tx.id]?.on)
-    .sort((a,b)=>(+b.priority||0)-(+a.priority||0));
+  const getBase = (k) => {
+    const b = (baseline && typeof baseline[k] === 'number') ? baseline[k] : Number(scenario.vitals?.[k] ?? 0);
+    return Number.isFinite(b) ? b : 0;
+  };
 
-  // first override per vital determines whether lower priorities are blocked
-  const lockByVital={};
-  for (const tx of activeList){
-    if (!tx.override) continue;
-    const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
-    for (const k of vitKeys){
-      if (lockByVital[k]) continue;
-      const d=+eff[k]||0;
-      if (d!==0 || cap[k]!=null || min[k]!=null) lockByVital[k]=tx;
-    }
+  for (const k of vitKeys){
+    if (vitals[k] == null) vitals[k] = getBase(k);
   }
 
-  // accumulate per-vital deltas while honoring override locks
-  const delta = Object.fromEntries(vitKeys.map(k=>[k,0]));
+  const activeList = (scenario.treatments || [])
+    .filter(tx => activeTx[tx.id]?.on)
+    .sort((a,b) => (b.priority||0) - (a.priority||0));
+
+  const delta  = Object.fromEntries(vitKeys.map(k => [k, 0]));
+  const minCap = Object.fromEntries(vitKeys.map(k => [k, null]));
+  const maxCap = Object.fromEntries(vitKeys.map(k => [k, null]));
+
   for (const tx of activeList){
     const eff = tx.eff || {};
-    const st  = activeTx[tx.id];
-    if (tx.mode==='oneShot' && st && !st.done){
-      for (const k of vitKeys){
-        if (lockByVital[k] && lockByVital[k]!==tx) continue;
-        const d=+eff[k]||0; if (d) delta[k]+=d*5;
-      }
-      st.done=true; st.on=false;
-    } else if (tx.mode==='toggle'){
-      for (const k of vitKeys){
-        if (lockByVital[k] && lockByVital[k]!==tx) continue;
-        const d=+eff[k]||0; if (d) delta[k]+=d;
-      }
-    }
-  }
-  for (const k of vitKeys) vitals[k] += delta[k];
-
-  // apply hard override caps/mins from the locking treatment, if any
-  for (const k of vitKeys){
-    const t=lockByVital[k]; if(!t) continue;
-    const mn=t.min?.[k]; const mx=t.cap?.[k];
-    if (mn!=null && vitals[k]<mn) vitals[k]=mn;
-    if (mx!=null && vitals[k]>mx) vitals[k]=mx;
-  }
-
-  // merge soft caps and mins from remaining eligible treatments
-  const up={}, down={}, floor={};
-  for (const tx of activeList){
-    const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
+    const mn  = tx.min || {};
+    const cp  = tx.cap || {};
     for (const k of vitKeys){
-      if (lockByVital[k] && lockByVital[k]!==tx) continue;
-      const d=+eff[k]||0;
-      if (cap[k]!=null){
-        if (d>0) up[k]   = up[k]==null   ? cap[k] : Math.min(up[k],cap[k]);
-        if (d<0) down[k] = down[k]==null ? cap[k] : Math.max(down[k],cap[k]);
+      if (delta[k] === 0){
+        const d = Number(eff[k] || 0);
+        if (d) delta[k] = d;
       }
-      if (min[k]!=null) floor[k]=floor[k]==null?min[k]:Math.max(floor[k],min[k]);
+      if (minCap[k] == null && mn[k] != null && mn[k] !== '') minCap[k] = Number(mn[k]);
+      if (maxCap[k] == null && cp[k] != null && cp[k] !== '') maxCap[k] = Number(cp[k]);
     }
   }
-  for (const k of vitKeys){
-    if (up[k]!=null)   vitals[k]=Math.min(vitals[k], up[k]);
-    if (down[k]!=null) vitals[k]=Math.max(vitals[k], down[k]);
-    if (floor[k]!=null) vitals[k]=Math.max(vitals[k], floor[k]);
-  }
 
-  // descriptor + skin from any ON treatment, else baseline
-  const descKeys=['hrRate','hrRhythm','hrQuality','rrRate','rrRhythm','rrQuality','skinColor','skinTemp','skinMoist'];
-  const desc={}; descKeys.forEach(k=>desc[k]=baseline[k]);
-  for (const tx of (scenario.treatments||[])){
-    const st=activeTx[tx.id]; if(!st||!st.on) continue;
-    const set=tx.set||{};
-    for (const k of descKeys){ if (set[k]!=null) desc[k]=set[k]; }
+  for (const k of vitKeys){
+    let v = Number(vitals[k]);
+
+    if (delta[k] !== 0){
+      v += delta[k];
+    } else {
+      const base = getBase(k);
+      const diff = base - v;
+      if (Math.abs(diff) >= 0.5){
+        v += Math.sign(diff) * 0.5;
+      } else {
+        v = base;
+      }
+    }
+
+    if (minCap[k] != null && v < minCap[k]) v = minCap[k];
+    if (maxCap[k] != null && v > maxCap[k]) v = maxCap[k];
+
+    if (k === 'spo2'){ if (v < 0) v = 0; if (v > 100) v = 100; }
+    if (k === 'hr')  { if (v < 0) v = 0; if (v > 240) v = 240; }
+    if (k === 'rr')  { if (v < 0) v = 0; if (v > 60)  v = 60;  }
+    if (k === 'sbp') { if (v < 0) v = 0; if (v > 260) v = 260; }
+    if (k === 'dbp') { if (v < 0) v = 0; if (v > 160) v = 160; }
+    if (k === 'cbg') { if (v < 0) v = 0; if (v > 600) v = 600; }
+
+    vitals[k] = v;
   }
-  // keep desc ephemeral; renderStatic will read from baseline + active tx
 }
 
 /* ---------------- Render ---------------- */
@@ -1025,7 +1066,7 @@ function renderStatic(){
   descKeys.forEach(k => { desc[k] = baseline[k]; });
   for (const tx of (scenario.treatments || [])){
     const st = activeTx[tx.id]; if (!st || !st.on) continue;
-    const txSet = tx.set || {};           // avoid shadowing the helper 'set'
+    const txSet = tx.set || {};
     for (const k of descKeys){ if (txSet[k] != null) desc[k] = txSet[k]; }
   }
 
@@ -1079,7 +1120,7 @@ function renderStatic(){
   // Skin triplet
   const skinEl=byId('p-skin');
   if (skinEl){
-    skinEl.textContent = `${scenario.vitals.skinColor||'--'} / ${scenario.vitals.skinTemp||'--'} / ${scenario.vitals.skinMoist||'--'}`;
+    skinEl.textContent = `${desc.skinColor||'--'} / ${desc.skinTemp||'--'} / ${desc.skinMoist||'--'}`;
   }
 
   // ALS badges and checkboxes
@@ -1090,7 +1131,21 @@ function renderStatic(){
   if (cb) cb.checked=!!scenario.flags.als;
   if (cp) cp.checked=!!scenario.flags.als;
 
-  // Keep audio button visuals in sync each render (buttons themselves built elsewhere)
+  const playFlags = scenario.displayOnPlay || {};
+  const show = (id, flag)=>{ const el=byId(id); if(el) el.classList.toggle('hidden', !flag); };
+  show('play-text-section', playFlags.text !== false);
+  show('p-sample-wrap', playFlags.sample !== false);
+  show('p-opqrst-wrap', playFlags.opqrst !== false);
+  const physBlock = byId('p-physical');
+  if (physBlock){
+    const hidePhys = playFlags.physical === false;
+    physBlock.classList.toggle('hidden', hidePhys);
+    const heading = physBlock.previousElementSibling;
+    if (heading && heading.tagName==='H3') heading.classList.toggle('hidden', hidePhys);
+  }
+
+  // Always refresh audio button list, then sync playing state
+  if (typeof renderAudioButtons === 'function') renderAudioButtons();
   if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
 }
 
@@ -1565,8 +1620,6 @@ function renderAudioButtons(){
   host.innerHTML = '';
   (scenario.audios||[]).forEach((a,i)=>{
     const src = getAudioSrc(a);
-    if (!src) return; // skip empty rows
-
     // ensure defaults
     a.bg    = a.bg    || '#fafafa';
     a.bgOn  = a.bgOn  || '#c7f7c7';
@@ -1576,6 +1629,11 @@ function renderAudioButtons(){
     btn.className = 'btn';
     btn.dataset.audio = String(i);            // index for handler
     btn.textContent = a.label || `Audio ${i+1}`;
+    if (!src){
+      btn.classList.add('muted');
+      btn.disabled = true;
+      btn.title = 'Attach audio in Build';
+    }
 
     // set CSS variables for flash animation (reuse treatment style)
     btn.style.setProperty('--on',  a.bgOn);
@@ -1607,6 +1665,17 @@ function updateAudioButtonStates(){
     const a = (scenario.audios||[])[i];
     if (!a) return;
     const playing = (i === currentAudioIdx);
+    const src = getAudioSrc(a);
+
+    if (!src){
+      btn.disabled = true;
+      btn.classList.add('muted');
+      btn.title = 'Attach audio in Build';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('muted');
+      btn.title = '';
+    }
 
     // ensure vars in case colors changed
     btn.style.setProperty('--on',  a.bgOn || '#c7f7c7');
@@ -1773,6 +1842,8 @@ function save(){
   const tav=byId('txt-avpu'); if(tav) scenario.text.avpu=tav.value;
   const tno=byId('txt-noi'); if(tno) scenario.text.noi=tno.value;
   const tcs=byId('txt-cspine'); if(tcs) scenario.text.cspine=tcs.value;
+  const tbs=byId('txt-backstory'); if(tbs) scenario.text.backstory=tbs.value;
+  const ttp=byId('txt-talkingpoints'); if(ttp) scenario.text.talkingPoints=ttp.value;
   scenario.flags.als=byId('flag-als-build')?.checked||byId('flag-als-play')?.checked||false;
   scenario.timing.minutes=parseInt(byId('min')?.value||'15',10);
 
@@ -1823,6 +1894,14 @@ function save(){
     }
   }
 
+  // Display toggles
+  scenario.displayOnPlay = scenario.displayOnPlay || {};
+  document.querySelectorAll('input[data-display-key]').forEach(cb=>{
+    const key = cb.dataset.displayKey;
+    if (!key) return;
+    scenario.displayOnPlay[key] = !!cb.checked;
+  });
+
   function scenarioForStorage(){
   // deep clone, then strip volatile / huge fields
   const copy = JSON.parse(JSON.stringify(scenario));
@@ -1847,10 +1926,12 @@ try{
   console.warn('Autosave skipped (likely storage full):', e);
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
+  const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
   drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
 }
 function load(){
   const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
+  ensureScenarioDefaults();
   // seed UI
   byId('meta-title').value=scenario.meta.title||'';
   byId('meta-author').value=scenario.meta.author||'';
@@ -1859,7 +1940,14 @@ function load(){
   byId('txt-avpu').value=scenario.text.avpu||'';
   byId('txt-noi').value=scenario.text.noi||'';
   byId('txt-cspine').value=scenario.text.cspine||'';
+  const tb=byId('txt-backstory'); if(tb) tb.value=scenario.text.backstory||'';
+  const tt=byId('txt-talkingpoints'); if(tt) tt.value=scenario.text.talkingPoints||'';
   byId('min').value=scenario.timing.minutes||15;
+
+  document.querySelectorAll('input[data-display-key]').forEach(cb=>{
+    const key = cb.dataset.displayKey;
+    cb.checked = scenario.displayOnPlay?.[key] !== false;
+  });
 
   byId('v-hr').value=scenario.vitals.hr; byId('v-rr').value=scenario.vitals.rr; byId('v-spo2').value=scenario.vitals.spo2;
   byId('v-sbp').value=scenario.vitals.sbp; byId('v-dbp').value=scenario.vitals.dbp; byId('v-cbg').value=scenario.vitals.cbg;
@@ -1895,6 +1983,7 @@ function load(){
   }
   drawAudioEditor();   // build list UI
 
+  hydrateBuilderInputs();
   drawInjects(); drawTreatments(); buildTxButtons(); resetRun(); renderPresetButtons();
 }
 function wire(){
@@ -1971,9 +2060,10 @@ safeOn(byId('add-audio'),'click',()=>{
   ['meta-title','meta-author','txt-dispatch','txt-gi','txt-avpu','txt-noi','txt-cspine','min',
   'v-hr','v-rr','v-spo2','v-sbp','v-dbp','v-cbg',
   's-s','s-a','s-m','s-p','s-l','s-e','phys',
-  'o-o','o-p','o-q','o-r','o-s','o-t','audio-label','audio-url', 
+  'o-o','o-p','o-q','o-r','o-s','o-t','audio-label','audio-url',
   'v-hr-rate','v-hr-rhythm','v-hr-quality','v-rr-rate','v-rr-rhythm','v-rr-quality','v-skin-color','v-skin-temp','v-skin-moist']
   .forEach(id=> safeOn(byId(id),'input',save));
+  document.querySelectorAll('input[data-display-key]').forEach(el=> safeOn(el,'change',save));
 
   // adders
   safeOn(byId('add-tx'),'click',()=>{ scenario.treatments.push({id:`tx${Date.now()}`,label:"New Treatment",mode:"toggle",eff:{},cap:{}}); save(); });
@@ -1988,28 +2078,13 @@ safeOn(byId('add-audio'),'click',()=>{
   });
   safeOn(byId('import-label'),'click',()=> byId('import')?.click());
   safeOn(byId('import'),'change',(e)=>{
-// Load scenario from a relative path like 'scenarios/example.json'
-safeOn(byId('load-scenario-btn'),'click', async ()=>{
-  const inp = byId('scenario-path');
-  const path = (inp?.value || '').trim();
-  if (!path) { alert('Enter a path like scenarios/example.json'); return; }
-  try{
-    const res = await fetch(path, { cache:'no-store' });
-    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
-    const obj = await res.json();
-    obj.prompts = []; // keep prompts removed
-    scenario = obj;
-    localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(obj));
-    load(); // hydrate Builder + Play
-  }catch(e){
-    alert('Failed to load scenario: ' + e.message);
-  }
-});
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
     r.onload=()=>{ try{
       scenario=JSON.parse(r.result);
+      ensureScenarioDefaults();
       localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+      hydrateBuilderInputs();
       load();
     }catch{ alert('Invalid JSON'); } };
     r.readAsText(f);
@@ -2027,7 +2102,80 @@ if (presetHost){
 }
 } // <-- close wire()
 
-document.addEventListener('DOMContentLoaded', ()=>{ wire(); load(); });
+function ensureScenarioDefaults(){
+  scenario = scenario || {};
+  scenario.meta = scenario.meta || JSON.parse(JSON.stringify(DEFAULT_SCENARIO.meta));
+  scenario.text = scenario.text || {};
+  scenario.text.dispatch ??= "";
+  scenario.text.gi ??= "";
+  scenario.text.avpu ??= "";
+  scenario.text.noi ??= "";
+  scenario.text.cspine ??= "";
+  scenario.text.backstory ??= "";
+  scenario.text.talkingPoints ??= "";
+  scenario.text.hospitalEta ??= "—";
+  scenario.flags = scenario.flags || {als:false};
+  scenario.timing = scenario.timing || {minutes:15};
+  scenario.vitals = scenario.vitals || {};
+  const v = scenario.vitals;
+  if (v.skinColor == null)  v.skinColor = "normal";
+  if (v.skinTemp == null)   v.skinTemp = "warm";
+  if (v.skinMoist == null)  v.skinMoist = "dry";
+  if (v.hrRate == null)     v.hrRate = "normal";
+  if (v.hrRhythm == null)   v.hrRhythm = "regular";
+  if (v.hrQuality == null)  v.hrQuality = "normal";
+  if (v.rrRate == null)     v.rrRate = "normal";
+  if (v.rrRhythm == null)   v.rrRhythm = "regular";
+  if (v.rrQuality == null)  v.rrQuality = "normal";
+  scenario.sample = scenario.sample || {s:"",a:"",m:"",p:"",l:"",e:"",phys:""};
+  scenario.opqrst = scenario.opqrst || {o:"",p:"",q:"",r:"",s:"",t:""};
+  scenario.audios = Array.isArray(scenario.audios) ? scenario.audios : [];
+  scenario.treatments = Array.isArray(scenario.treatments) ? scenario.treatments : [];
+  scenario.prompts = Array.isArray(scenario.prompts) ? scenario.prompts : [];
+  if (!scenario.apgar) scenario.apgar = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.apgar));
+  if (!scenario.apgarNotes) scenario.apgarNotes = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.apgarNotes));
+  if (!scenario.nbVitals) scenario.nbVitals = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.nbVitals));
+  if (!Array.isArray(scenario.nbTreatments)) scenario.nbTreatments = [];
+  const defaultDisplay = DEFAULT_SCENARIO.displayOnPlay;
+  scenario.displayOnPlay = scenario.displayOnPlay || {};
+  Object.keys(defaultDisplay).forEach(key=>{
+    if (scenario.displayOnPlay[key] == null) scenario.displayOnPlay[key] = defaultDisplay[key];
+  });
+}
+
+function hydrateBuilderInputs(){
+  const ids = {
+    'txt-backstory': scenario.text.backstory,
+    'txt-talkingpoints': scenario.text.talkingPoints,
+    'nb-hr': scenario.nbVitals?.hr,
+    'nb-rr': scenario.nbVitals?.rr,
+    'nb-spo2': scenario.nbVitals?.spo2,
+    'nb-sbp': scenario.nbVitals?.sbp,
+    'nb-dbp': scenario.nbVitals?.dbp,
+    'nb-cbg': scenario.nbVitals?.cbg,
+    'nb-hr-rate': scenario.nbVitals?.hrRate,
+    'nb-hr-rhythm': scenario.nbVitals?.hrRhythm,
+    'nb-hr-quality': scenario.nbVitals?.hrQuality,
+    'nb-rr-rate': scenario.nbVitals?.rrRate,
+    'nb-rr-rhythm': scenario.nbVitals?.rrRhythm,
+    'nb-rr-quality': scenario.nbVitals?.rrQuality,
+    'nb-skin-color': scenario.nbVitals?.skinColor,
+    'nb-skin-temp': scenario.nbVitals?.skinTemp,
+    'nb-skin-moist': scenario.nbVitals?.skinMoist
+  };
+  Object.entries(ids).forEach(([id,val])=>{
+    const el = byId(id);
+    if (!el || val == null) return;
+    if (el.type === 'checkbox') el.checked = !!val;
+    else el.value = val;
+  });
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  ensureScenarioDefaults();
+  wire();
+  load();
+});
 </script>
 <!-- URGENT modal -->
 <div id="urgent-modal" class="modal" aria-hidden="true">
@@ -2038,9 +2186,807 @@ document.addEventListener('DOMContentLoaded', ()=>{ wire(); load(); });
     <div class="modal-actions">
       <button id="urgent-close" class="btn">Close</button>
     </div>
-  </div>
+</div>
 </div>
 <!-- Time to Hospital pill — paste just before </body> -->
+<!-- Newborn Vitals → Play sync shim -->
+<script>
+(function(){
+  "use strict";
+  const byId=(id)=>document.getElementById(id);
+
+  function syncNB(){
+    if(!window.scenario || !scenario.nbVitals) return;
+    const s=scenario.nbVitals;
+    const set=(id,val)=>{ const el=byId(id); if(el) el.textContent=val; };
+    set('np-hr', Number.isFinite(s.hr)? Math.round(s.hr):'--');
+    set('np-rr', Number.isFinite(s.rr)? Math.round(s.rr):'--');
+    set('np-spo2', Number.isFinite(s.spo2)? (+s.spo2).toFixed(1):'--');
+    set('np-bp', (Number.isFinite(s.sbp)&&Number.isFinite(s.dbp))? `${Math.round(s.sbp)}/${Math.round(s.dbp)}`:'--/--');
+    set('np-cbg', Number.isFinite(s.cbg)? Math.round(s.cbg):'--');
+    const hrD=byId('np-hr-desc'); if(hrD) hrD.textContent = `Rate: ${s.hrRate||'normal'} | Rhythm: ${s.hrRhythm||'regular'} | Quality: ${s.hrQuality||'normal'}`;
+    const rrD=byId('np-rr-desc'); if(rrD) rrD.textContent = `Rate: ${s.rrRate||'normal'} | Rhythm: ${s.rrRhythm||'regular'} | Quality: ${s.rrQuality||'normal'}`;
+    const skin=byId('np-skin'); if(skin) skin.textContent = `${s.skinColor||'--'} / ${s.skinTemp||'--'} / ${s.skinMoist||'--'}`;
+  }
+
+  function wireBuildInputs(){
+    const ids=['nb-hr','nb-rr','nb-spo2','nb-sbp','nb-dbp','nb-cbg','nb-hr-rate','nb-hr-rhythm','nb-hr-quality','nb-rr-rate','nb-rr-rhythm','nb-rr-quality','nb-skin-color','nb-skin-temp','nb-skin-moist'];
+    ids.forEach(id=>{
+      const el=byId(id); if(!el) return;
+      const on=()=>{ try{ syncNB(); }catch{} };
+      el.addEventListener('input', on);
+      el.addEventListener('change', on);
+    });
+  }
+
+  function patchRenderAll(){
+    if (window._nbSyncPatched) return;
+    if (typeof window.renderAll !== 'function'){ setTimeout(patchRenderAll,100); return; }
+    window._nbSyncPatched = true;
+    const orig = window.renderAll;
+    window.renderAll = function(){
+      orig();
+      try{ syncNB(); }catch{}
+    };
+  }
+
+  function boot(){
+    patchRenderAll();
+    wireBuildInputs();
+    const wait = ()=>{ if(byId('np-hr')){ syncNB(); } else { setTimeout(wait,100); } };
+    wait();
+  }
+
+  if (document.readyState==='complete' || document.readyState==='interactive') boot();
+  else document.addEventListener('DOMContentLoaded', boot, {once:true});
+})();
+</script>
+
+<!-- OBGYN Add-on v3 -->
+<script>
+(function(){
+  "use strict";
+
+  const byId = (id)=>document.getElementById(id);
+  const h = (html)=>{ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild; };
+
+  function saveSafe(){
+    try{ if(typeof save==="function"){ save(); return; } }catch{}
+    try{ localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario)); }catch{}
+  }
+
+  const APGAR_DOMAINS = [
+    ["appearance","Appearance (color)"],
+    ["pulse","Pulse (HR)"],
+    ["grimace","Grimace (reflex)"],
+    ["activity","Activity (tone)"],
+    ["respiration","Respiration"]
+  ];
+
+  function ensureScenarioExtensions(){
+    ensureScenarioDefaults();
+  }
+
+  function mountBackstoryBuild(){
+    if (byId('backstory-fields')) return;
+    const csp = byId('txt-cspine'); if(!csp) return;
+    const holder = csp.closest('.grid'); if(!holder) return;
+    if (byId('obgyn-backstory-build')) return;
+    const wrap = h(`
+      <div id="obgyn-backstory-build" style="margin-top:8px">
+        <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <label>Patient Backstory – Use to answer questions that may be asked
+            <textarea id="txt-backstory" rows="3" placeholder="One line per bullet"></textarea>
+          </label>
+          <label>Inject talking points
+            <textarea id="txt-talkingpoints" rows="3" placeholder="One line per bullet"></textarea>
+          </label>
+        </div>
+      </div>
+    `);
+    holder.insertAdjacentElement('afterend', wrap);
+    const elB = byId('txt-backstory');
+    const elT = byId('txt-talkingpoints');
+    if (elB) elB.value = scenario.text.backstory || "";
+    if (elT) elT.value = scenario.text.talkingPoints || "";
+    const bind = (el,key)=>{ if(!el) return; const on=()=>{ scenario.text[key]=el.value; saveSafe(); renderOBPlay(); }; el.addEventListener('input',on); el.addEventListener('change',on); };
+    bind(elB,'backstory'); bind(elT,'talkingPoints');
+  }
+
+  function apgarSelect(namePrefix){
+    const opts = [0,1,2].map(v=>`<option value="${v}">${v}</option>`).join("");
+    return APGAR_DOMAINS.map(([k,label])=>`
+      <label>${label}
+        <select id="${namePrefix}-${k}">${opts}</select>
+      </label>
+    `).join("");
+  }
+
+  function apgarTotal(node){ return (node.appearance|0)+(node.pulse|0)+(node.grimace|0)+(node.activity|0)+(node.respiration|0); }
+
+  function mountApgarBuild(){
+    const anchor = Array.from(document.querySelectorAll('#build h3')).find(n=>n.textContent.trim().toLowerCase().startsWith('audio cues'));
+    if(!anchor || byId('obgyn-apgar-build')) return;
+    const block = h(`
+      <div id="obgyn-apgar-build">
+        <div class="divider"></div>
+        <div class="display-toggle-row" style="justify-content:flex-end">
+          <label class="display-toggle"><input type="checkbox" data-display-key="apgar" checked> APGAR on Play</label>
+        </div>
+        <h3>APGAR</h3>
+        <div class="grid">
+          <div>
+            <div class="badge">1-minute</div>
+            <div class="grid" style="margin-top:8px">${apgarSelect('apgar1')}</div>
+          </div>
+          <div>
+            <div class="badge">5-minutes</div>
+            <div class="grid" style="margin-top:8px">${apgarSelect('apgar5')}</div>
+          </div>
+        </div>
+        <div class="mini" id="apgar-build-totals" style="margin-top:6px"></div>
+      </div>
+    `);
+    anchor.parentElement.insertBefore(block, anchor);
+    APGAR_DOMAINS.forEach(([k])=>{
+      const s1 = byId(`apgar1-${k}`), s5 = byId(`apgar5-${k}`);
+      if(s1){ s1.value = String(scenario.apgar.one[k] ?? 0); s1.onchange = ()=>{ scenario.apgar.one[k]=+s1.value|0; saveSafe(); updateApgarBuildTotals(); renderApgarPlayScores(); }; }
+      if(s5){ s5.value = String(scenario.apgar.five[k] ?? 0); s5.onchange = ()=>{ scenario.apgar.five[k]=+s5.value|0; saveSafe(); updateApgarBuildTotals(); renderApgarPlayScores(); }; }
+    });
+    const apToggle = block.querySelector('input[data-display-key="apgar"]');
+    if (apToggle){
+      apToggle.checked = scenario.displayOnPlay?.apgar !== false;
+      apToggle.addEventListener('change', ()=>{ scenario.displayOnPlay.apgar = apToggle.checked; saveSafe(); renderOBPlay(); });
+    }
+    updateApgarBuildTotals();
+  }
+
+  function updateApgarBuildTotals(){
+    const t = byId('apgar-build-totals'); if(!t) return;
+    t.textContent = `Totals → 1-min: ${apgarTotal(scenario.apgar.one)}/10, 5-min: ${apgarTotal(scenario.apgar.five)}/10`;
+  }
+
+  function mountNbVitalsBuild(){
+    const vitH3 = Array.from(document.querySelectorAll('#build h3')).find(n => n.textContent.trim() === 'Vitals');
+    if (!vitH3 || byId('obgyn-nb-vitals-build')) return;
+
+    let after = vitH3;
+    let cur = vitH3.nextElementSibling;
+    while (cur && cur.tagName !== 'H3') { after = cur; cur = cur.nextElementSibling; }
+
+    const nb = h(`
+      <div id="obgyn-nb-vitals-build">
+        <div class="divider"></div>
+        <div class="display-toggle-row" style="justify-content:flex-end">
+          <label class="display-toggle"><input type="checkbox" data-display-key="nbVitals" checked> NB Monitor on Play</label>
+          <label class="display-toggle"><input type="checkbox" data-display-key="nbTreatments" checked> NB Treatments on Play</label>
+        </div>
+        <h3>Newborn Vitals</h3>
+        <div class="three">
+          <label>HR <input id="nb-hr" type="number" value="${scenario.nbVitals.hr}"></label>
+          <label>RR <input id="nb-rr" type="number" value="${scenario.nbVitals.rr}"></label>
+          <label>SpO₂ <input id="nb-spo2" type="number" step="0.1" value="${scenario.nbVitals.spo2}"></label>
+          <label>SBP <input id="nb-sbp" type="number" value="${scenario.nbVitals.sbp}"></label>
+          <label>DBP <input id="nb-dbp" type="number" value="${scenario.nbVitals.dbp}"></label>
+          <label>CBG <input id="nb-cbg" type="number" value="${scenario.nbVitals.cbg}"></label>
+        </div>
+        <div class="grid" style="margin-top:10px">
+          <label>Pulse Rate <select id="nb-hr-rate"><option>normal</option><option>tachycardic</option><option>bradycardic</option><option>absent</option></select></label>
+          <label>Pulse Rhythm <select id="nb-hr-rhythm"><option>regular</option><option>irregular</option><option>absent</option></select></label>
+          <label>Pulse Quality <select id="nb-hr-quality"><option>normal</option><option>weak</option><option>thready</option><option>bounding</option><option>absent</option></select></label>
+        </div>
+        <div class="grid">
+          <label>Resp Rate <select id="nb-rr-rate"><option>normal</option><option>tachypneic</option><option>bradypneic</option><option>absent</option></select></label>
+          <label>Resp Rhythm <select id="nb-rr-rhythm"><option>regular</option><option>irregular</option><option>absent</option></select></label>
+          <label>Resp Quality <select id="nb-rr-quality"><option>normal</option><option>shallow</option><option>labored</option><option>absent</option></select></label>
+        </div>
+        <div class="grid">
+          <label>Skin Color <select id="nb-skin-color"><option>normal</option><option>pink</option><option>pale</option><option>flushed</option><option>cyanotic</option><option>mottled</option><option>jaundiced</option></select></label>
+          <label>Skin Temp <select id="nb-skin-temp"><option>warm</option><option>hot</option><option>cool</option><option>cold</option></select></label>
+          <label>Skin Moisture <select id="nb-skin-moist"><option>normal</option><option>dry</option><option>moist</option><option>clammy</option><option>diaphoretic</option></select></label>
+        </div>
+      </div>
+    `);
+    after.insertAdjacentElement('afterend', nb);
+
+    const map = {
+      'nb-hr':'hr','nb-rr':'rr','nb-spo2':'spo2','nb-sbp':'sbp','nb-dbp':'dbp','nb-cbg':'cbg'
+    };
+    Object.entries(map).forEach(([id,key])=>{
+      const el=byId(id); if(!el) return;
+      el.addEventListener('input',()=>{ scenario.nbVitals[key]=parseFloat(el.value||0); saveSafe(); });
+    });
+    const selects = {
+      'nb-hr-rate':'hrRate','nb-hr-rhythm':'hrRhythm','nb-hr-quality':'hrQuality',
+      'nb-rr-rate':'rrRate','nb-rr-rhythm':'rrRhythm','nb-rr-quality':'rrQuality',
+      'nb-skin-color':'skinColor','nb-skin-temp':'skinTemp','nb-skin-moist':'skinMoist'
+    };
+    Object.entries(selects).forEach(([id,key])=>{
+      const el=byId(id); if(!el) return;
+      el.value = scenario.nbVitals[key] || el.value;
+      el.addEventListener('change',()=>{ scenario.nbVitals[key]=el.value; saveSafe(); });
+    });
+    nb.querySelectorAll('input[data-display-key],select[data-display-key]').forEach(el=>{
+      const key = el.dataset.displayKey;
+      if (!key) return;
+      el.checked = scenario.displayOnPlay?.[key] !== false;
+      el.addEventListener('change', ()=>{ scenario.displayOnPlay[key] = el.type==='checkbox'?el.checked:el.value; saveSafe(); renderOBPlay(); });
+    });
+  }
+
+  function mountNbTreatmentsBuild(){
+    if (byId('nb-tx-section')) return;
+    const host = byId('tx-list'); if(!host) return;
+    const wrap = h(`
+      <div id="nb-tx-section">
+        <div class="divider"></div>
+        <h3>Newborn Treatments</h3>
+        <div id="nb-tx-list"></div>
+        <button id="add-nb-tx" class="btn">Add Newborn Treatment</button>
+      </div>
+    `);
+    host.parentElement.insertAdjacentElement('afterend', wrap);
+    const add = byId('add-nb-tx');
+    if (add){
+      add.addEventListener('click', ()=>{
+        scenario.nbTreatments.push({ id:`nbtx${Date.now()%1e6}`, label:'NB Tx', mode:'toggle', eff:{}, cap:{}, min:{}, set:{}, priority:0, override:false });
+        saveSafe(); drawNbTreatments();
+      });
+    }
+    drawNbTreatments();
+  }
+
+  function drawNbTreatments(){
+    const host = byId('nb-tx-list'); if(!host) return; host.innerHTML='';
+    (scenario.nbTreatments||[]).forEach((tx, i)=>{
+      const card = h(`
+        <div class="kv">
+          <div class="row hdr">
+            <label style="flex:2">Label <input class="label" value="${tx.label||''}"></label>
+            <label style="flex:1">ID <input class="id" value="${tx.id||''}"></label>
+            <label style="flex:1">Mode <select class="mode">
+              <option value="toggle" ${tx.mode==='toggle'?'selected':''}>toggle</option>
+              <option value="oneShot" ${tx.mode==='oneShot'?'selected':''}>oneShot</option>
+            </select></label>
+            <label style="width:90px">Priority <input class="prio" type="number" value="${tx.priority??0}"></label>
+            <label style="width:110px">Override <input class="ovr" type="checkbox" ${tx.override?'checked':''}></label>
+            <button class="btn danger del">Delete</button>
+          </div>
+          <div class="body">
+            <div class="vital-rows">
+              <div class="vital-row head"><div></div><div>Δ/s</div><div>Target</div><div>Max</div><div>Min</div></div>
+              ${['hr','rr','spo2','sbp','dbp','cbg'].map(k=>`
+                <div class="vital-row">
+                  <div class="vlabel">${k.toUpperCase()}</div>
+                  <input class="e-${k}" type="number" step="0.01" value="${tx.eff?.[k]||0}">
+                  <input class="t-${k}" type="number" step="0.1" value="">
+                  <input class="c-${k}" type="number" step="0.1" value="${tx.cap?.[k]??''}" placeholder="none">
+                  <input class="m-${k}" type="number" step="0.1" value="${tx.min?.[k]??''}" placeholder="none">
+                </div>
+              `).join('')}
+            </div>
+            <div class="inline-line">
+              <span class="group-h">Pulse</span>
+              <label>Rate <select class="set-hr-rate"><option value="">(no change)</option><option>normal</option><option>tachycardic</option><option>bradycardic</option><option>absent</option></select></label>
+              <label>Rhythm <select class="set-hr-rhythm"><option value="">(no change)</option><option>regular</option><option>irregular</option><option>absent</option></select></label>
+              <label>Quality <select class="set-hr-quality"><option value="">(no change)</option><option>normal</option><option>weak</option><option>thready</option><option>bounding</option><option>absent</option></select></label>
+            </div>
+            <div class="inline-line">
+              <span class="group-h">Resp</span>
+              <label>Rate <select class="set-rr-rate"><option value="">(no change)</option><option>normal</option><option>tachypneic</option><option>bradypneic</option><option>absent</option></select></label>
+              <label>Rhythm <select class="set-rr-rhythm"><option value="">(no change)</option><option>regular</option><option>irregular</option><option>absent</option></select></label>
+              <label>Quality <select class="set-rr-quality"><option value="">(no change)</option><option>normal</option><option>shallow</option><option>labored</option><option>absent</option></select></label>
+            </div>
+            <div class="inline-line">
+              <span class="group-h">Skin</span>
+              <label>Color <select class="set-skin-color"><option value="">(no change)</option><option>normal</option><option>pink</option><option>pale</option><option>flushed</option><option>cyanotic</option><option>mottled</option><option>jaundiced</option></select></label>
+              <label>Temp <select class="set-skin-temp"><option value="">(no change)</option><option>warm</option><option>hot</option><option>cool</option><option>cold</option></select></label>
+              <label>Moist <select class="set-skin-moist"><option value="">(no change)</option><option>normal</option><option>dry</option><option>moist</option><option>clammy</option><option>diaphoretic</option></select></label>
+            </div>
+          </div>
+        </div>
+      `);
+      host.appendChild(card);
+      const q = (sel) => card.querySelector(sel);
+      q('.label').onchange=()=>{ tx.label=q('.label').value; saveSafe(); };
+      q('.id').onchange=()=>{ tx.id=q('.id').value; saveSafe(); };
+      q('.mode').onchange=()=>{ tx.mode=q('.mode').value; saveSafe(); };
+      q('.prio').onchange=()=>{ tx.priority=+q('.prio').value||0; saveSafe(); };
+      q('.ovr').onchange=()=>{ tx.override=!!q('.ovr').checked; saveSafe(); };
+      q('.del').onclick=()=>{ scenario.nbTreatments.splice(i,1); saveSafe(); drawNbTreatments(); buildNbTxButtons(); };
+      ['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
+        q('.e-'+k).onchange=()=>{ tx.eff=tx.eff||{}; tx.eff[k]=parseFloat(q('.e-'+k).value||0); saveSafe(); };
+        q('.c-'+k).onchange=()=>{ tx.cap=tx.cap||{}; const v=q('.c-'+k).value; tx.cap[k]=v===''?null:parseFloat(v); saveSafe(); };
+        q('.m-'+k).onchange=()=>{ tx.min=tx.min||{}; const v=q('.m-'+k).value; tx.min[k]=v===''?null:parseFloat(v); saveSafe(); };
+        q('.t-'+k).onchange=()=>{ const v=q('.t-'+k).value; if(v===''){ tx.min=tx.min||{}; tx.cap=tx.cap||{}; delete tx.min[k]; delete tx.cap[k]; } else { const t=parseFloat(v); tx.min=tx.min||{}; tx.cap=tx.cap||{}; tx.min[k]=t; tx.cap[k]=t; } saveSafe(); };
+      });
+      const setSel = (cls, key)=>{ const el=q('.'+cls); if(!el) return; const init = tx.set?.[key] ?? ""; el.value = init; el.onchange=()=>{ tx.set=tx.set||{}; const v=el.value; if(v==="") delete tx.set[key]; else tx.set[key]=v; saveSafe(); }; };
+      setSel('set-hr-rate','hrRate'); setSel('set-hr-rhythm','hrRhythm'); setSel('set-hr-quality','hrQuality');
+      setSel('set-rr-rate','rrRate'); setSel('set-rr-rhythm','rrRhythm'); setSel('set-rr-quality','rrQuality');
+      setSel('set-skin-color','skinColor'); setSel('set-skin-temp','skinTemp'); setSel('set-skin-moist','skinMoist');
+    });
+  }
+
+  function relabelMomMonitor(){
+    const playPanel = document.querySelector('#play .panel .content'); if(!playPanel) return;
+    const h3s = Array.from(playPanel.querySelectorAll('h3'));
+    const firstMonitorH3 = h3s.find(h3 => h3.textContent.trim().toLowerCase()==='monitor' && h3.nextElementSibling && h3.nextElementSibling.classList.contains('monitor'));
+    if (firstMonitorH3) firstMonitorH3.textContent = "Mom's Vital Signs";
+  }
+
+  function mountPlayBlocks(){
+    const playPanel = document.querySelector('#play .panel .content'); if(!playPanel) return;
+
+    if(!byId('obgyn-backstory-play')){
+      const grid = playPanel.querySelector('.grid');
+      const blk = h(`
+        <div id="obgyn-backstory-play">
+          <div class="divider"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div id="p-backstory-wrap">
+              <h3>Patient Backstory – Use to answer questions that may be asked</h3>
+              <div id="p-backstory" class="content"></div>
+            </div>
+            <div id="p-talkingpoints-wrap">
+              <h3>Inject talking points</h3>
+              <div id="p-talkingpoints" class="content"></div>
+            </div>
+          </div>
+        </div>
+      `);
+      grid.insertAdjacentElement('afterend', blk);
+    }
+
+    if(!byId('nb-monitor')){
+      const monitorsAfter = playPanel.querySelector('.monitor')?.parentElement || playPanel;
+      const blk = h(`
+        <div id="nb-monitor-wrap">
+          <div class="divider"></div>
+          <h3>Newborn Monitor</h3>
+          <div class="monitor" id="nb-monitor">
+            <div class="kv"><div>HR</div><div class="v" id="np-hr">--</div><div id="np-hr-desc" class="subdesc"></div></div>
+            <div class="kv"><div>RR</div><div class="v" id="np-rr">--</div><div id="np-rr-desc" class="subdesc"></div></div>
+            <div class="kv compact"><div>SpO₂</div><div class="v" id="np-spo2">--</div></div>
+            <div class="kv compact"><div>B/P</div><div class="v" id="np-bp">--/--</div></div>
+            <div class="kv compact"><div>CBG</div><div class="v" id="np-cbg">--</div></div>
+            <div class="kv compact"><div>Skin</div><div class="v" id="np-skin">--</div></div>
+          </div>
+          <div id="p-nb-tx-wrap">
+            <h3>Newborn Treatments</h3>
+            <div id="p-nb-tx-buttons" class="row wide"></div>
+          </div>
+        </div>
+      `);
+      monitorsAfter.parentElement.insertBefore(blk, monitorsAfter.nextSibling);
+    }
+
+    mountApgarPlayBelowVitals();
+    relabelMomMonitor();
+  }
+
+  function bulletize(text){
+    const items = String(text||'').split(/\n+|[.;]\s+/).map(s=>s.trim()).filter(Boolean);
+    return items.length ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>` : '—';
+  }
+
+  function renderOBPlay(){
+    const pb = byId('p-backstory'); if(pb) pb.innerHTML = bulletize(scenario.text.backstory);
+    const pt = byId('p-talkingpoints'); if(pt) pt.innerHTML = bulletize(scenario.text.talkingPoints);
+    const flags = scenario.displayOnPlay || {};
+    const toggle = (id,key)=>{ const el=byId(id); if(el) el.classList.toggle('hidden', flags[key] === false); };
+    toggle('p-backstory-wrap','backstory');
+    toggle('p-talkingpoints-wrap','talkingPoints');
+    toggle('nb-monitor-wrap','nbVitals');
+    toggle('p-nb-tx-wrap','nbTreatments');
+    toggle('p-apgar-wrap','apgar');
+    setNbMonitorValues();
+    renderApgarPlayScores();
+  }
+
+  function mountApgarPlayBelowVitals(){
+    const playPanel = document.querySelector('#play .panel .content'); if(!playPanel) return;
+    const old = byId('p-apgar-wrap'); if (old) old.remove();
+    const nbWrap = byId('nb-monitor-wrap');
+    let anchor = nbWrap || playPanel.querySelector('.monitor')?.parentElement || playPanel;
+    const wrap = h(`
+      <div id="p-apgar-wrap">
+        <div class="divider"></div>
+        <h3>APGAR</h3>
+        <div id="apgar-panels" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          ${apgarPanel('one','1-minute')}
+          ${apgarPanel('five','5-minutes')}
+        </div>
+      </div>
+    `);
+    anchor.parentElement.insertBefore(wrap, anchor.nextSibling);
+    APGAR_DOMAINS.forEach(([k])=>{
+      const n1 = byId(`apnote-one-${k}`), n5 = byId(`apnote-five-${k}`);
+      if(n1){ n1.value = scenario.apgarNotes.one[k]||''; n1.addEventListener('input', ()=>{ scenario.apgarNotes.one[k]=n1.value; saveSafe(); }); }
+      if(n5){ n5.value = scenario.apgarNotes.five[k]||''; n5.addEventListener('input', ()=>{ scenario.apgarNotes.five[k]=n5.value; saveSafe(); }); }
+    });
+    renderApgarPlayScores();
+  }
+
+  function apgarPanel(which,label){
+    const scores = scenario.apgar[which]||{};
+    const rows = APGAR_DOMAINS.map(([k,lab])=>`
+      <div class="kv">
+        <div style="min-width:140px">${lab}</div>
+        <div class="badge" id="apscore-${which}-${k}" style="min-width:36px;text-align:center">${scores[k]??0}</div>
+      </div>
+      <textarea id="apnote-${which}-${k}" rows="2" placeholder="Notes for ${lab}"></textarea>
+    `).join('');
+    return `
+      <div class="panel" style="border:1px solid var(--b);border-radius:12px;overflow:hidden">
+        <h3 style="border-bottom:1px solid var(--bb)">${label}</h3>
+        <div class="content">${rows}</div>
+        <div class="mini" style="padding:8px 12px;border-top:1px solid var(--bb)">Total: <span id="aptotal-${which}">${apgarTotal(scores)}/10</span></div>
+      </div>`;
+  }
+
+  function renderApgarPlayScores(){
+    ['one','five'].forEach(which=>{
+      const s = scenario.apgar[which]||{};
+      APGAR_DOMAINS.forEach(([k])=>{
+        const el = byId(`apscore-${which}-${k}`); if(el) el.textContent = String(s[k]??0);
+      });
+      const tot = byId(`aptotal-${which}`); if(tot) tot.textContent = `${apgarTotal(s)}/10`;
+    });
+  }
+
+  let nbActiveTx = {};
+  let nbVitals = {};
+  let nbBaseline = {};
+
+  function resetRunNB(){
+    if (!scenario.nbVitals) return;
+    nbVitals   = {...scenario.nbVitals};
+    nbBaseline = {...scenario.nbVitals};
+    nbActiveTx = {};
+    setNbMonitorValues();
+    buildNbTxButtons();
+  }
+
+  function setNbMonitorValues(){
+    const set=(id,val)=>{ const el=byId(id); if(el) el.textContent=val; };
+    set('np-hr',Math.round(nbVitals.hr||0));
+    set('np-rr',Math.round(nbVitals.rr||0));
+    set('np-spo2',(nbVitals.spo2??0).toFixed(1));
+    set('np-bp',Math.round(nbVitals.sbp||0)+"/"+Math.round(nbVitals.dbp||0));
+    set('np-cbg',Math.round(nbVitals.cbg??0));
+    const hrDesc = `Rate: ${scenario.nbVitals.hrRate||'normal'} | Rhythm: ${scenario.nbVitals.hrRhythm||'regular'} | Quality: ${scenario.nbVitals.hrQuality||'normal'}`;
+    const rrDesc = `Rate: ${scenario.nbVitals.rrRate||'normal'} | Rhythm: ${scenario.nbVitals.rrRhythm||'regular'} | Quality: ${scenario.nbVitals.rrQuality||'normal'}`;
+    const hrD=byId('np-hr-desc'); if(hrD) hrD.textContent = hrDesc;
+    const rrD=byId('np-rr-desc'); if(rrD) rrD.textContent = rrDesc;
+    const skin=byId('np-skin'); if(skin) skin.textContent = `${scenario.nbVitals.skinColor||'--'} / ${scenario.nbVitals.skinTemp||'--'} / ${scenario.nbVitals.skinMoist||'--'}`;
+  }
+
+  function applyEffectsPerSecondNB(){
+    const vitKeys = ['hr','rr','spo2','sbp','dbp','cbg'];
+    const getBase = (k)=>{ const base = (nbBaseline && typeof nbBaseline[k] === 'number') ? nbBaseline[k] : Number(scenario.nbVitals?.[k] ?? 0); return Number.isFinite(base)?base:0; };
+    vitKeys.forEach(k=>{ if(nbVitals[k]==null) nbVitals[k]=getBase(k); });
+    const activeList = (scenario.nbTreatments||[])
+      .filter(tx => nbActiveTx[tx.id]?.on)
+      .sort((a,b)=>(b.priority||0)-(a.priority||0));
+    const delta = Object.fromEntries(vitKeys.map(k=>[k,0]));
+    const minCap = Object.fromEntries(vitKeys.map(k=>[k,null]));
+    const maxCap = Object.fromEntries(vitKeys.map(k=>[k,null]));
+    for (const tx of activeList){
+      const eff=tx.eff||{};
+      const mn=tx.min||{};
+      const cp=tx.cap||{};
+      for (const k of vitKeys){
+        if (delta[k] === 0){ const d = Number(eff[k] || 0); if (d) delta[k] = d; }
+        if (minCap[k] == null && mn[k] != null && mn[k] !== '') minCap[k] = Number(mn[k]);
+        if (maxCap[k] == null && cp[k] != null && cp[k] !== '') maxCap[k] = Number(cp[k]);
+      }
+    }
+    for (const k of vitKeys){
+      let v = Number(nbVitals[k]);
+      if (delta[k] !== 0){
+        v += delta[k];
+      } else {
+        const base = getBase(k);
+        const diff = base - v;
+        if (Math.abs(diff) >= 0.5){ v += Math.sign(diff) * 0.5; }
+        else { v = base; }
+      }
+      if (minCap[k] != null && v < minCap[k]) v = minCap[k];
+      if (maxCap[k] != null && v > maxCap[k]) v = maxCap[k];
+      if (k === 'spo2'){ if (v < 0) v = 0; if (v > 100) v = 100; }
+      if (k === 'hr')  { if (v < 0) v = 0; if (v > 240) v = 240; }
+      if (k === 'rr')  { if (v < 0) v = 0; if (v > 60)  v = 60;  }
+      if (k === 'sbp') { if (v < 0) v = 0; if (v > 260) v = 260; }
+      if (k === 'dbp') { if (v < 0) v = 0; if (v > 160) v = 160; }
+      if (k === 'cbg') { if (v < 0) v = 0; if (v > 600) v = 600; }
+      nbVitals[k] = v;
+    }
+    const descKeys=['hrRate','hrRhythm','hrQuality','rrRate','rrRhythm','rrQuality','skinColor','skinTemp','skinMoist'];
+    const desc={}; descKeys.forEach(k=>desc[k]=nbBaseline[k]);
+    for (const tx of (scenario.nbTreatments||[])){
+      const st=nbActiveTx[tx.id]; if(!st||!st.on) continue;
+      const set=tx.set||{};
+      for (const k of descKeys){ if (set[k]!=null) desc[k]=set[k]; }
+    }
+    for (const k of descKeys) scenario.nbVitals[k]=desc[k];
+  }
+
+  function buildNbTxButtons(){
+    function mount(id){
+      const host = byId(id); if(!host) return; host.innerHTML='';
+      (scenario.nbTreatments||[]).forEach(tx=>{
+        const b=document.createElement('button');
+        b.className='btn';
+        b.textContent=tx.label||tx.id;
+        const isOn = !!(nbActiveTx[tx.id] && nbActiveTx[tx.id].on);
+        b.classList.toggle('success', isOn);
+        b.addEventListener('click', ()=>{
+          nbActiveTx[tx.id] = nbActiveTx[tx.id] || {on:false, done:false};
+          if (tx.mode==='toggle'){ nbActiveTx[tx.id].on = !nbActiveTx[tx.id].on; }
+          else { nbActiveTx[tx.id].on = true; nbActiveTx[tx.id].done = false; }
+          saveSafe();
+        });
+        host.appendChild(b);
+      });
+    }
+    mount('p-nb-tx-buttons');
+  }
+
+  function monkeyPatchCore(){
+    if(!window._origResetRun && typeof resetRun==="function"){
+      window._origResetRun = resetRun;
+      resetRun = function(){ window._origResetRun(); resetRunNB(); };
+    }
+    if(!window._origTick && typeof tick==="function"){
+      window._origTick = tick;
+      tick = function(){ window._origTick(); applyEffectsPerSecondNB(); setNbMonitorValues(); };
+    }
+    if(!window._origRenderAll && typeof renderAll==="function"){
+      window._origRenderAll = renderAll;
+      renderAll = function(){ window._origRenderAll(); renderOBPlay(); };
+    }
+  }
+
+  function boot(){
+    try{
+      ensureScenarioExtensions();
+      mountBackstoryBuild();
+      mountApgarBuild();
+      mountNbVitalsBuild();
+      mountNbTreatmentsBuild();
+      mountPlayBlocks();
+      buildNbTxButtons();
+      monkeyPatchCore();
+      resetRunNB();
+      renderOBPlay();
+      hydrateBuilderInputs();
+      saveSafe();
+    }catch(e){ console.error('[OBGYN add-on]', e); }
+  }
+
+  function readyCheck(){
+    if (document.readyState === 'complete' || document.readyState === 'interactive'){
+      if (byId('build') && byId('play')) { boot(); }
+      else setTimeout(readyCheck, 150);
+    } else {
+      document.addEventListener('DOMContentLoaded', readyCheck, {once:true});
+    }
+  }
+  setTimeout(readyCheck, 120);
+})();
+</script>
+
+<!-- Injects Beep Patterns v2 -->
+<script>
+(function(){
+  "use strict";
+
+  const byId = (id)=>document.getElementById(id);
+
+  function saveSafe(){
+    try{ if(typeof save==="function"){ save(); return; } }catch{}
+    try{ localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario)); }catch{}
+  }
+
+  function ensureBeepDefaults(){
+    (scenario.injects||[]).forEach(inj=>{
+      if (!inj.beepPattern) inj.beepPattern = '1long';
+    });
+  }
+
+  function toneOnce(freq=1000, ms=200, vol=0.25){
+    try{
+      const C=new (window.AudioContext||window.webkitAudioContext)();
+      const o=C.createOscillator(), g=C.createGain();
+      o.connect(g); g.connect(C.destination);
+      o.type="square"; o.frequency.value=freq; g.gain.value=vol;
+      o.start(); setTimeout(()=>{ try{o.stop();}catch{} try{C.close();}catch{} }, ms);
+    }catch{}
+  }
+
+  function playBeepPattern(pat){
+    const seq = (()=>{
+      if (pat==='1short') return [200];
+      if (pat==='2short') return [200,150,200];
+      if (pat==='3short') return [200,150,200,150,200];
+      return [700];
+    })();
+    let t=0;
+    for(let i=0;i<seq.length;i++){
+      const isGap = i%2===1;
+      if (isGap){ t += seq[i]; continue; }
+      const dur = seq[i];
+      setTimeout(()=>toneOnce(1000, dur, 0.25), t);
+      t += dur;
+      if (i<seq.length-1) t += (seq[i+1]||0);
+    }
+  }
+  window.playBeepPattern = playBeepPattern;
+
+  function patchBlast(){
+    if (window._origBlastPatched) return;
+    window._origBlastPatched = true;
+    const orig = window.blast;
+    window._origBlast = orig;
+    window.blast = function(f=1000,m=700){
+      try{
+        const now = (window.elapsed|0) || 0;
+        const list = (window.appliedInjects||[]).slice().sort((a,b)=>Math.abs((+a.t||0)-now)-Math.abs((+b.t||0)-now));
+        const cand = list[0];
+        const pat = cand?.beepPattern || '1long';
+        playBeepPattern(pat);
+      }catch{
+        try{ orig && orig(f,m); }catch{}
+      }
+    };
+  }
+
+  function enhanceInjectRows(){
+    const host = byId('inject-list'); if(!host) return;
+    const rows = Array.from(host.querySelectorAll('.row'));
+    rows.forEach((row, idx)=>{
+      if (!Array.isArray(scenario.injects) || !scenario.injects[idx]) return;
+      if (row.querySelector('.inj-beep')) return;
+      const inj = scenario.injects[idx];
+
+      const wrap = document.createElement('div');
+      wrap.className = 'kv';
+      wrap.style.display='flex';
+      wrap.style.alignItems='center';
+      wrap.style.gap='8px';
+      wrap.innerHTML = `
+        <label title="Beep pattern when this inject starts/ends">
+          Beep
+          <select class="inj-beep">
+            <option value="1short">One short</option>
+            <option value="1long">One long</option>
+            <option value="2short">Two short</option>
+            <option value="3short">Three short</option>
+          </select>
+        </label>
+        <button type="button" class="btn inj-beep-preview" title="Preview beep">Preview</button>
+      `;
+      row.appendChild(wrap);
+
+      const sel = row.querySelector('.inj-beep');
+      const prev= row.querySelector('.inj-beep-preview');
+      sel.value = inj.beepPattern || '1long';
+      sel.addEventListener('change', ()=>{
+        scenario.injects[idx].beepPattern = sel.value;
+        saveSafe();
+      });
+      prev.addEventListener('click', ()=> playBeepPattern(scenario.injects[idx].beepPattern || '1long'));
+    });
+  }
+
+  let _lastActiveInj = null;
+  function currentActiveInject(now){
+    let active=null;
+    const list = (window.appliedInjects||[]);
+    for (const inj of list){
+      const dur = +inj.dur || 0; if (!dur) continue;
+      const fireT = (+inj.t)|0, endT = fireT + dur;
+      if (now >= fireT && now <= endT){
+        if (!active || fireT > ((+active?.t)|0)) active = inj;
+      }
+    }
+    return active;
+  }
+  function watchInjectStartEnd(){
+    const now = (window.elapsed|0) || 0;
+    const cur = currentActiveInject(now);
+    const changed = ( (_lastActiveInj?.id||null) !== (cur?.id||null) ) ||
+                    ( _lastActiveInj && cur && ((+_lastActiveInj.t|0) !== (+cur.t|0)) );
+    if (changed){
+      if (_lastActiveInj && (!_lastActiveInj.id || !_lastActiveInj || (_lastActiveInj.id !== cur?.id) || ((+_lastActiveInj.t|0) !== (+cur?.t|0)))){
+        const pat = _lastActiveInj.beepPattern || '1long';
+        playBeepPattern(pat);
+      }
+      _lastActiveInj = cur || null;
+    }
+  }
+
+  function patchTick(){
+    if (window._origTick_beep) return;
+    if (typeof window.tick !== 'function') return;
+    window._origTick_beep = window.tick;
+    window.tick = function(){
+      window._origTick_beep();
+      try{ watchInjectStartEnd(); }catch{}
+    };
+  }
+
+  function patchDrawInjects(){
+    if (window._origDrawInjects_beep) return;
+    if (typeof window.drawInjects!=='function') return;
+    window._origDrawInjects_beep = window.drawInjects;
+    window.drawInjects = function(){
+      window._origDrawInjects_beep();
+      try{ ensureBeepDefaults(); enhanceInjectRows(); }catch{}
+    };
+  }
+
+  function boot(){
+    try{
+      ensureBeepDefaults();
+      patchBlast();
+      patchDrawInjects();
+      patchTick();
+      setTimeout(()=>{ try{ enhanceInjectRows(); }catch{} }, 50);
+    }catch(e){ console.error('[inject-beeps v2]', e); }
+  }
+  function ready(){
+    if (document.readyState==='complete' || document.readyState==='interactive'){
+      const tryBoot = ()=>{ if (typeof window.drawInjects==='function' && typeof window.blast==='function' && typeof window.tick==='function'){ boot(); } else { setTimeout(tryBoot,100); } };
+      tryBoot();
+    } else {
+      document.addEventListener('DOMContentLoaded', ready, {once:true});
+    }
+  }
+  ready();
+})();
+</script>
+
+<!-- Global reset (Clear All) -->
+<script>
+(function(){
+  "use strict";
+
+  const byId = (id)=>document.getElementById(id);
+
+  function defaultScenario(){
+    return JSON.parse(JSON.stringify(DEFAULT_SCENARIO));
+  }
+
+  function mountButton(){
+    if (byId('clear-all-btn')) return;
+    const bar = document.querySelector('header .title');
+    if (!bar) return;
+    const btn = document.createElement('button');
+    btn.id = 'clear-all-btn';
+    btn.className = 'btn danger';
+    btn.style.marginLeft = '12px';
+    btn.textContent = 'Clear All';
+    btn.addEventListener('click', ()=>{
+      if (!confirm('Reset scenario to defaults?')) return;
+      scenario = defaultScenario();
+      localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+      hydrateBuilderInputs();
+      load();
+      resetRun();
+    });
+    bar.appendChild(btn);
+  }
+
+  function boot(){
+    mountButton();
+  }
+
+  if (document.readyState==='complete' || document.readyState==='interactive') boot();
+  else document.addEventListener('DOMContentLoaded', boot, {once:true});
+})();
+</script>
+
 <script>
 (function(){
   "use strict";
