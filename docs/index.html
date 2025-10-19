@@ -1836,7 +1836,6 @@ try{
   console.warn('Autosave skipped (likely storage full):', e);
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
-  const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
   drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
 }
 function load(){
