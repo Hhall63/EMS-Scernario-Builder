@@ -1,0 +1,198 @@
+// schema/scenario.v27.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EMT Scenario v27",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["meta", "text", "flags", "timing", "vitals"],
+  "$defs": {
+    "color": { "type": "string", "minLength": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "nonEmpty": { "type": "string", "minLength": 1 },
+    "vitalDeltaObj": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hr": { "type": "number" },
+        "rr": { "type": "number" },
+        "spo2": { "type": "number" },
+        "sbp": { "type": "number" },
+        "dbp": { "type": "number" },
+        "cbg": { "type": "number" }
+      }
+    },
+    "descriptorSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "hrRate": { "enum": ["normal","tachycardic","bradycardic","absent",null] },
+        "hrRhythm": { "enum": ["regular","irregular","absent",null] },
+        "hrQuality": { "enum": ["normal","weak","thready","bounding","absent",null] },
+        "rrRate": { "enum": ["normal","tachypneic","bradypneic","absent",null] },
+        "rrRhythm": { "enum": ["regular","irregular","absent",null] },
+        "rrQuality": { "enum": ["normal","shallow","labored","absent",null] },
+        "skinColor": { "enum": ["normal","pink","pale","flushed","cyanotic","mottled","jaundiced",null] },
+        "skinTemp": { "enum": ["warm","hot","cool","cold",null] },
+        "skinMoist": { "enum": ["dry","normal","moist","clammy","diaphoretic",null] }
+      }
+    }
+  },
+  "properties": {
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "version"],
+      "properties": {
+        "title": { "type": "string" },
+        "version": { "type": "integer", "const": 27 },
+        "author": { "type": "string" }
+      }
+    },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "dispatch": { "type": "string" },
+        "gi": { "type": "string" },
+        "avpu": { "type": "string" },
+        "noi": { "type": "string" },
+        "cspine": { "type": "string" },
+        "hospitalEta": { "type": "string" }
+      }
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "als": { "type": "boolean" } }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minutes"],
+      "properties": {
+        "minutes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "injects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "t"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "name": { "type": "string" },
+          "t": { "type": "integer", "minimum": 0 },
+          "dur": { "type": "integer", "minimum": 0 },
+          "hideAfter": { "type": "integer", "minimum": 0 },
+          "bg": { "$ref": "#/$defs/color" },
+          "txOn": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "triggers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id"],
+              "properties": {
+                "id": { "$ref": "#/$defs/id" },
+                "delay": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "vitals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hr","rr","spo2","sbp","dbp","cbg"],
+      "properties": {
+        "hr": { "type": "number", "minimum": 0, "maximum": 190 },
+        "rr": { "type": "number", "minimum": 0, "maximum": 50 },
+        "spo2": { "type": "number", "minimum": 0, "maximum": 100 },
+        "sbp": { "type": "number", "minimum": 0, "maximum": 200 },
+        "dbp": { "type": "number", "minimum": 0, "maximum": 130 },
+        "cbg": { "type": "number", "minimum": 0, "maximum": 600 },
+        "skinColor": { "enum": ["normal","pink","pale","flushed","cyanotic","mottled","jaundiced"] },
+        "skinTemp": { "enum": ["warm","hot","cool","cold"] },
+        "skinMoist": { "enum": ["dry","normal","moist","clammy","diaphoretic"] },
+        "hrRate": { "enum": ["normal","tachycardic","bradycardic","absent"] },
+        "hrRhythm": { "enum": ["regular","irregular","absent"] },
+        "hrQuality": { "enum": ["normal","weak","thready","bounding","absent"] },
+        "rrRate": { "enum": ["normal","tachypneic","bradypneic","absent"] },
+        "rrRhythm": { "enum": ["regular","irregular","absent"] },
+        "rrQuality": { "enum": ["normal","shallow","labored","absent"] }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "s": { "type": "string" },
+        "a": { "type": "string" },
+        "m": { "type": "string" },
+        "p": { "type": "string" },
+        "l": { "type": "string" },
+        "e": { "type": "string" },
+        "phys": { "type": "string" }
+      }
+    },
+    "opqrst": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "o": { "type": "string" },
+        "p": { "type": "string" },
+        "q": { "type": "string" },
+        "r": { "type": "string" },
+        "s": { "type": "string" },
+        "t": { "type": "string" }
+      }
+    },
+    "audios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "label": { "type": "string" },
+          "url": { "type": "string" },
+          "bg": { "$ref": "#/$defs/color" },
+          "bgOn": { "$ref": "#/$defs/color" },
+          "flashOn": { "type": "boolean" },
+          "name": { "type": "string" }
+        }
+      }
+    },
+    "treatments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id","label","mode"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "label": { "type": "string" },
+          "mode": { "enum": ["toggle","oneShot"] },
+          "priority": { "type": "integer" },
+          "override": { "type": "boolean" },
+          "bg": { "$ref": "#/$defs/color" },
+          "bgOn": { "$ref": "#/$defs/color" },
+          "flashOn": { "type": "boolean" },
+          "eff": { "$ref": "#/$defs/vitalDeltaObj" },
+          "min": { "$ref": "#/$defs/vitalDeltaObj" },
+          "cap": { "$ref": "#/$defs/vitalDeltaObj" },
+          "set": { "$ref": "#/$defs/descriptorSet" },
+          "_collapsed": { "type": "boolean" },
+          "urgent": { "type": "boolean" },
+          "urgentMsg": { "type": "string" }
+        }
+      }
+    },
+    "prompts": { "type": "array" }
+  }
+}
