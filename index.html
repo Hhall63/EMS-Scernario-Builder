@@ -1012,6 +1012,10 @@ function renderStatic(){
   const hrDesc = `Rate: ${desc.hrRate||'normal'} | Rhythm: ${desc.hrRhythm||'regular'} | Quality: ${desc.hrQuality||'normal'}`;
   const rrDesc = `Rate: ${desc.rrRate||'normal'} | Rhythm: ${desc.rrRhythm||'regular'} | Quality: ${desc.rrQuality||'normal'}`;
 
+  // show HR/RR descriptors
+  set('p-hr-desc', hrDesc);
+  set('p-rr-desc', rrDesc);
+
   // SAMPLE block
   if (byId('p-sample')){
     const s = scenario.sample;
@@ -1023,32 +1027,28 @@ function renderStatic(){
        <div><strong>L:</strong> ${s.l||''}</div>
        <div><strong>E:</strong> ${s.e||''}</div>`;
   }
-}
 
-// OPQRST block
-if (byId('p-opqrst')){
-  const o=scenario.opqrst||{};
-  byId('p-opqrst').innerHTML =
-    `<div><strong>O:</strong> ${o.o||''}</div>
-     <div><strong>P:</strong> ${o.p||''}</div>
-     <div><strong>Q:</strong> ${o.q||''}</div>
-     <div><strong>R:</strong> ${o.r||''}</div>
-     <div><strong>S:</strong> ${o.s||''}</div>
-     <div><strong>T:</strong> ${o.t||''}</div>`;
-}
-// Physical: bullet points under the AVPU block
-const physEl = byId('p-physical');
-if (physEl){
-  const raw = scenario.sample.phys || '';
-  const items = raw
-    .split(/\n+|[.;]\s+/)   // split on new lines or sentence-ish breaks
-    .map(s => s.trim())
-    .filter(Boolean);
-  physEl.innerHTML = items.length
-    ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>`
-    : '—';
+  // OPQRST block
+  if (byId('p-opqrst')){
+    const o=scenario.opqrst||{};
+    byId('p-opqrst').innerHTML =
+      `<div><strong>O:</strong> ${o.o||''}</div>
+       <div><strong>P:</strong> ${o.p||''}</div>
+       <div><strong>Q:</strong> ${o.q||''}</div>
+       <div><strong>R:</strong> ${o.r||''}</div>
+       <div><strong>S:</strong> ${o.s||''}</div>
+       <div><strong>T:</strong> ${o.t||''}</div>`;
   }
 
+  // Physical bullets
+  const physEl = byId('p-physical');
+  if (physEl){
+    const raw = scenario.sample.phys || '';
+    const items = raw.split(/\n+|[.;]\s+/).map(s=>s.trim()).filter(Boolean);
+    physEl.innerHTML = items.length ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>` : '—';
+  }
+
+  // Dispatch, GI, AVPU/NOI/C-spine
   const pd=byId('p-dispatch'), pg=byId('p-gi'), pa=byId('p-ancillary');
   if (pd) pd.textContent=scenario.text.dispatch||'';
   if (pg) pg.textContent=scenario.text.gi||'';
@@ -1056,18 +1056,23 @@ if (physEl){
     <div><strong>NOI/MOI:</strong> ${scenario.text.noi||''}</div>
     <div><strong>C-spine:</strong> ${scenario.text.cspine||''}</div>`;
 
+  // Skin triplet
   const skinEl=byId('p-skin');
   if (skinEl){
     skinEl.textContent = `${scenario.vitals.skinColor||'--'} / ${scenario.vitals.skinTemp||'--'} / ${scenario.vitals.skinMoist||'--'}`;
   }
 
+  // ALS badges and checkboxes
   const alsA=byId('als-badge'), alsP=byId('p-als-badge');
   if (alsA) alsA.classList.toggle('hidden', !scenario.flags.als);
   if (alsP) alsP.classList.toggle('hidden', !scenario.flags.als);
+  const cb=byId('flag-als-build'), cp=byId('flag-als-play');
+  if (cb) cb.checked=!!scenario.flags.als;
+  if (cp) cp.checked=!!scenario.flags.als;
 
-  // Rebuild audio buttons, then sync their visual state (playing/idle)
-  if (typeof renderAudioButtons === 'function') renderAudioButtons();
+  // Keep audio button visuals in sync each render (buttons themselves built elsewhere)
   if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
+}
 
 
 function renderAll(){ renderStatic(); renderInjects(); }
@@ -1532,6 +1537,7 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
 
     host.appendChild(row);
   });
+  renderAudioButtons();
 }
 
 function renderAudioButtons(){
@@ -1822,7 +1828,7 @@ try{
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
-  drawInjects(); drawTreatments(); buildTxButtons(); renderAll();
+  drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
 }
 function load(){
   const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
