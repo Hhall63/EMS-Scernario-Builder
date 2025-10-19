@@ -111,7 +111,7 @@ button.muted{opacity:.6;cursor:not-allowed}
   /* timers with captions + wider spacing */
   .timer-wrap{display:flex;flex-direction:column;align-items:center;min-width:160px}
   .eta-wrap{gap:6px}
-  .eta-wrap .eta-pill{cursor:pointer;font-size:20px;padding:8px 16px;font-weight:600}
+  .eta-wrap .eta-pill{font-size:20px;padding:8px 16px;font-weight:600}
   .timer-caption{font-size:12px;color:#374151;margin-top:2px}
   .stickybar.row{justify-content:center;gap:32px}          /* extra space between clocks */
   /* make inject timer match main timer size */
@@ -120,6 +120,8 @@ button.muted{opacity:.6;cursor:not-allowed}
     .stickybar.sticky-center{justify-content:center; gap:12px}
     .stickybar .bigbtn{font-size:16px; padding:10px 14px}   /* slightly larger */
     #inject-counts .pill.inject-big{font-size:40px; padding:6px 12px; font-weight:700} /* match main timer size */
+  label.eta-input{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#374151;min-width:160px}
+  label.eta-input input{font-size:16px;font-weight:600;text-align:center;padding:6px 10px}
   /* HIDE ALS UI (BUILD + PLAY) */
 #als-badge, #p-als-badge{ display:none !important; }          /* badges */
 #flag-als-play, #flag-als-build{ display:none !important; }    /* checkboxes */
@@ -274,6 +276,9 @@ header .title{
     <div id="timer" class="big-timer">15:00</div>
     <div class="timer-caption">Scenario Time Remaining / ALS ETA</div>
   </div>
+  <label class="eta-input">Hospital ETA
+    <input id="txt-hospital-eta" type="text" placeholder="e.g. 12 min or 08:00">
+  </label>
 </div>
     <div class="content">
       <!-- Removed the left-side build Monitor preview as requested -->
@@ -511,7 +516,7 @@ header .title{
   </div>
 
   <div class="timer-wrap eta-wrap">
-    <button id="eta-pill" type="button" class="pill eta-pill" title="Click to edit"></button>
+    <button id="eta-pill" type="button" class="pill eta-pill" title="Time to hospital"></button>
     <div class="timer-caption">Time to hospital</div>
   </div>
 
@@ -1844,6 +1849,7 @@ function save(){
   const tcs=byId('txt-cspine'); if(tcs) scenario.text.cspine=tcs.value;
   const tbs=byId('txt-backstory'); if(tbs) scenario.text.backstory=tbs.value;
   const ttp=byId('txt-talkingpoints'); if(ttp) scenario.text.talkingPoints=ttp.value;
+  const the=byId('txt-hospital-eta'); if(the) scenario.text.hospitalEta=(the.value||'').trim()||'—';
   scenario.flags.als=byId('flag-als-build')?.checked||byId('flag-als-play')?.checked||false;
   scenario.timing.minutes=parseInt(byId('min')?.value||'15',10);
 
@@ -1942,6 +1948,7 @@ function load(){
   byId('txt-cspine').value=scenario.text.cspine||'';
   const tb=byId('txt-backstory'); if(tb) tb.value=scenario.text.backstory||'';
   const tt=byId('txt-talkingpoints'); if(tt) tt.value=scenario.text.talkingPoints||'';
+  const the=byId('txt-hospital-eta'); if(the) the.value=scenario.text.hospitalEta||'—';
   byId('min').value=scenario.timing.minutes||15;
 
   document.querySelectorAll('input[data-display-key]').forEach(cb=>{
@@ -2057,7 +2064,7 @@ safeOn(byId('add-audio'),'click',()=>{
   safeOn(byId('flag-als-build'),'change',()=>{ scenario.flags.als=byId('flag-als-build').checked; const cp=byId('flag-als-play'); if(cp) cp.checked=scenario.flags.als; save(); });
   safeOn(byId('flag-als-play'),'change',()=>{ scenario.flags.als=byId('flag-als-play').checked; const cb=byId('flag-als-build'); if(cb) cb.checked=scenario.flags.als; save(); });
   // inputs
-  ['meta-title','meta-author','txt-dispatch','txt-gi','txt-avpu','txt-noi','txt-cspine','min',
+  ['meta-title','meta-author','txt-dispatch','txt-gi','txt-avpu','txt-noi','txt-cspine','txt-hospital-eta','min',
   'v-hr','v-rr','v-spo2','v-sbp','v-dbp','v-cbg',
   's-s','s-a','s-m','s-p','s-l','s-e','phys',
   'o-o','o-p','o-q','o-r','o-s','o-t','audio-label','audio-url',
@@ -2147,6 +2154,7 @@ function hydrateBuilderInputs(){
   const ids = {
     'txt-backstory': scenario.text.backstory,
     'txt-talkingpoints': scenario.text.talkingPoints,
+    'txt-hospital-eta': scenario.text.hospitalEta,
     'nb-hr': scenario.nbVitals?.hr,
     'nb-rr': scenario.nbVitals?.rr,
     'nb-spo2': scenario.nbVitals?.spo2,
@@ -3003,16 +3011,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const st = document.createElement('style');
     st.id = 'eta-style';
     st.textContent = `
-      .eta-pill{ cursor:pointer }
+      .eta-pill{ cursor:default }
     `;
     document.head.appendChild(st);
-  }
-
-  function mountEta(){
-    const pill = byId('eta-pill');
-    if (!pill || pill.dataset.bound) return;
-    pill.addEventListener('click', editEta);
-    pill.dataset.bound = '1';
   }
 
   function renderEta(){
@@ -3021,32 +3022,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if (pill) pill.textContent = scenario.text.hospitalEta || '—';
   }
 
-  function editEta(){
-    const cur = (scenario.text && scenario.text.hospitalEta) || '';
-    const v = prompt('Time to hospital (free text or mm:ss):', cur);
-    if (v == null) return;
-    ensureField();
-    scenario.text.hospitalEta = v.trim() || '—';
-    try{
-      if (typeof save === 'function') save();
-      else localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
-    }catch{}
-    renderEta();
-  }
-
   function patchRenderAll(){
     if (window._origRenderAll_eta || typeof window.renderAll !== 'function') return;
     window._origRenderAll_eta = window.renderAll;
     window.renderAll = function(){
       window._origRenderAll_eta();
-      try{ mountEta(); renderEta(); }catch{}
+      try{ renderEta(); }catch{}
     };
   }
 
   function boot(){
     ensureField();
     addStyles();
-    mountEta();
     renderEta();
     patchRenderAll();
   }
