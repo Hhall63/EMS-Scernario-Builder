@@ -1978,6 +1978,23 @@ safeOn(byId('add-audio'),'click',()=>{
   });
   safeOn(byId('import-label'),'click',()=> byId('import')?.click());
   safeOn(byId('import'),'change',(e)=>{
+// Load scenario from a relative path like 'scenarios/example.json'
+safeOn(byId('load-scenario-btn'),'click', async ()=>{
+  const inp = byId('scenario-path');
+  const path = (inp?.value || '').trim();
+  if (!path) { alert('Enter a path like scenarios/example.json'); return; }
+  try{
+    const res = await fetch(path, { cache:'no-store' });
+    if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+    const obj = await res.json();
+    obj.prompts = []; // keep prompts removed
+    scenario = obj;
+    localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(obj));
+    load(); // hydrate Builder + Play
+  }catch(e){
+    alert('Failed to load scenario: ' + e.message);
+  }
+});
     const f=e.target.files[0]; if(!f) return;
     const r=new FileReader();
     r.onload=()=>{ try{
