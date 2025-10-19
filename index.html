@@ -1064,9 +1064,6 @@ if (physEl){
   const alsA=byId('als-badge'), alsP=byId('p-als-badge');
   if (alsA) alsA.classList.toggle('hidden', !scenario.flags.als);
   if (alsP) alsP.classList.toggle('hidden', !scenario.flags.als);
-  const cb=byId('flag-als-build'), cp=byId('flag-als-play');
-  if (cb) cb.checked=!!scenario.flags.als;
-  if (cp) cp.checked=!!scenario.flags.als;
 
   // Rebuild audio buttons, then sync their visual state (playing/idle)
   renderAudioButtons();
