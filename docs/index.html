@@ -1963,6 +1963,17 @@ function load(){
   setVal('v-skin-temp', scenario.vitals.skinTemp);
   setVal('v-skin-moist', scenario.vitals.skinMoist);
 
+  if (scenario.apgarNotes){
+    Object.entries(scenario.apgarNotes.one || {}).forEach(([k,val])=>{
+      const el = byId(`apgar1note-${k}`);
+      if (el) el.value = val || '';
+    });
+    Object.entries(scenario.apgarNotes.five || {}).forEach(([k,val])=>{
+      const el = byId(`apgar5note-${k}`);
+      if (el) el.value = val || '';
+    });
+  }
+
   if(!scenario.opqrst) scenario.opqrst = {o:"",p:"",q:"",r:"",s:"",t:""};
     const setInput = (id,val)=>{ const el=byId(id); if(el) el.value = val || ''; };
     setInput('o-o', scenario.opqrst.o);
@@ -2169,6 +2180,17 @@ function hydrateBuilderInputs(){
     if (el.type === 'checkbox') el.checked = !!val;
     else el.value = val;
   });
+
+  if (scenario.apgarNotes){
+    Object.entries(scenario.apgarNotes.one || {}).forEach(([k,val])=>{
+      const el = byId(`apgar1note-${k}`);
+      if (el) el.value = val || '';
+    });
+    Object.entries(scenario.apgarNotes.five || {}).forEach(([k,val])=>{
+      const el = byId(`apgar5note-${k}`);
+      if (el) el.value = val || '';
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -2302,6 +2324,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     `).join("");
   }
 
+  function apgarNoteInputs(idPrefix){
+    return APGAR_DOMAINS.map(([k,label])=>`
+      <label>${label} Notes
+        <textarea id="${idPrefix}-${k}" rows="2" placeholder="Notes for ${label}"></textarea>
+      </label>
+    `).join("");
+  }
+
   function apgarTotal(node){ return (node.appearance|0)+(node.pulse|0)+(node.grimace|0)+(node.activity|0)+(node.respiration|0); }
 
   function mountApgarBuild(){
@@ -2318,10 +2348,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
           <div>
             <div class="badge">1-minute</div>
             <div class="grid" style="margin-top:8px">${apgarSelect('apgar1')}</div>
+            <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar1note')}</div>
           </div>
           <div>
             <div class="badge">5-minutes</div>
             <div class="grid" style="margin-top:8px">${apgarSelect('apgar5')}</div>
+            <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar5note')}</div>
           </div>
         </div>
         <div class="mini" id="apgar-build-totals" style="margin-top:6px"></div>
@@ -2332,6 +2364,31 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const s1 = byId(`apgar1-${k}`), s5 = byId(`apgar5-${k}`);
       if(s1){ s1.value = String(scenario.apgar.one[k] ?? 0); s1.onchange = ()=>{ scenario.apgar.one[k]=+s1.value|0; saveSafe(); updateApgarBuildTotals(); renderApgarPlayScores(); }; }
       if(s5){ s5.value = String(scenario.apgar.five[k] ?? 0); s5.onchange = ()=>{ scenario.apgar.five[k]=+s5.value|0; saveSafe(); updateApgarBuildTotals(); renderApgarPlayScores(); }; }
+      const n1 = byId(`apgar1note-${k}`), n5 = byId(`apgar5note-${k}`);
+      if(n1){
+        n1.value = scenario.apgarNotes?.one?.[k] || '';
+        const onNote = ()=>{
+          scenario.apgarNotes = scenario.apgarNotes || {one:{},five:{}};
+          scenario.apgarNotes.one = scenario.apgarNotes.one || {};
+          scenario.apgarNotes.one[k] = n1.value;
+          saveSafe();
+          renderApgarPlayScores();
+        };
+        n1.addEventListener('input', onNote);
+        n1.addEventListener('change', onNote);
+      }
+      if(n5){
+        n5.value = scenario.apgarNotes?.five?.[k] || '';
+        const onNote = ()=>{
+          scenario.apgarNotes = scenario.apgarNotes || {one:{},five:{}};
+          scenario.apgarNotes.five = scenario.apgarNotes.five || {};
+          scenario.apgarNotes.five[k] = n5.value;
+          saveSafe();
+          renderApgarPlayScores();
+        };
+        n5.addEventListener('input', onNote);
+        n5.addEventListener('change', onNote);
+      }
     });
     const apToggle = block.querySelector('input[data-display-key="apgar"]');
     if (apToggle){
@@ -2599,11 +2656,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
       </div>
     `);
     anchor.parentElement.insertBefore(wrap, anchor.nextSibling);
-    APGAR_DOMAINS.forEach(([k])=>{
-      const n1 = byId(`apnote-one-${k}`), n5 = byId(`apnote-five-${k}`);
-      if(n1){ n1.value = scenario.apgarNotes.one[k]||''; n1.addEventListener('input', ()=>{ scenario.apgarNotes.one[k]=n1.value; saveSafe(); }); }
-      if(n5){ n5.value = scenario.apgarNotes.five[k]||''; n5.addEventListener('input', ()=>{ scenario.apgarNotes.five[k]=n5.value; saveSafe(); }); }
-    });
     renderApgarPlayScores();
   }
 
@@ -2614,7 +2666,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         <div style="min-width:140px">${lab}</div>
         <div class="badge" id="apscore-${which}-${k}" style="min-width:36px;text-align:center">${scores[k]??0}</div>
       </div>
-      <textarea id="apnote-${which}-${k}" rows="2" placeholder="Notes for ${lab}"></textarea>
+      <div class="mini" id="apnote-${which}-${k}" style="margin-bottom:8px">—</div>
     `).join('');
     return `
       <div class="panel" style="border:1px solid var(--b);border-radius:12px;overflow:hidden">
@@ -2627,8 +2679,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   function renderApgarPlayScores(){
     ['one','five'].forEach(which=>{
       const s = scenario.apgar[which]||{};
+      const notes = scenario.apgarNotes?.[which] || {};
       APGAR_DOMAINS.forEach(([k])=>{
         const el = byId(`apscore-${which}-${k}`); if(el) el.textContent = String(s[k]??0);
+        const noteEl = byId(`apnote-${which}-${k}`);
+        if(noteEl){
+          const noteText = (notes[k] || '').trim();
+          noteEl.textContent = noteText ? noteText : '—';
+        }
       });
       const tot = byId(`aptotal-${which}`); if(tot) tot.textContent = `${apgarTotal(s)}/10`;
     });
