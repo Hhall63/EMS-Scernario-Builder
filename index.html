@@ -109,6 +109,8 @@
   .stickybar{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bb);padding:8px 10px;z-index:5}
   /* timers with captions + wider spacing */
   .timer-wrap{display:flex;flex-direction:column;align-items:center;min-width:160px}
+  .eta-wrap{gap:6px}
+  .eta-wrap .eta-pill{cursor:pointer;font-size:20px;padding:8px 16px;font-weight:600}
   .timer-caption{font-size:12px;color:#374151;margin-top:2px}
   .stickybar.row{justify-content:center;gap:32px}          /* extra space between clocks */
   /* make inject timer match main timer size */
@@ -464,6 +466,11 @@ header .title{
   <div class="timer-wrap">
     <div id="p-timer" class="big-timer">15:00</div>
     <div class="timer-caption">Scenario Time Remaining / ALS ETA</div>
+  </div>
+
+  <div class="timer-wrap eta-wrap">
+    <button id="eta-pill" type="button" class="pill eta-pill" title="Click to edit"></button>
+    <div class="timer-caption">Time to hospital</div>
   </div>
 
   <div class="timer-wrap">
@@ -1064,6 +1071,8 @@ if (physEl){
   // Rebuild audio buttons, then sync their visual state (playing/idle)
   renderAudioButtons();
   updateAudioButtonStates();
+
+}
 
 function renderAll(){ renderStatic(); renderInjects(); }
 
@@ -2010,26 +2019,16 @@ document.addEventListener('DOMContentLoaded', ()=>{ wire(); load(); });
     const st = document.createElement('style');
     st.id = 'eta-style';
     st.textContent = `
-      .ls-head .eta-wrap{ margin-left:auto; display:flex; align-items:center; gap:8px }
-      .ls-head .eta-caption{ font-weight:700 }
-      .ls-head .eta-pill{ cursor:pointer }
+      .eta-pill{ cursor:pointer }
     `;
     document.head.appendChild(st);
   }
 
   function mountEta(){
-    const head = document.querySelector('.ls-head'); if (!head) return;
-    if (byId('eta-wrap')) return;
-
-    const wrap = document.createElement('div');
-    wrap.className = 'eta-wrap';
-    wrap.id = 'eta-wrap';
-    wrap.innerHTML = `
-      <span class="eta-caption">Time to hospital</span>
-      <button id="eta-pill" type="button" class="pill eta-pill" title="Click to edit"></button>
-    `;
-    head.appendChild(wrap);
-    byId('eta-pill').addEventListener('click', editEta);
+    const pill = byId('eta-pill');
+    if (!pill || pill.dataset.bound) return;
+    pill.addEventListener('click', editEta);
+    pill.dataset.bound = '1';
   }
 
   function renderEta(){
