@@ -1,134 +1,85 @@
-# Code Review Notes
+# Integration Roadmap
 
-### Plan
+This plan replaces the prior review notes. Follow the four phases below to merge the TSOP "2&3" prototype into `index.html`, maintain feature parity, and add the requested layout/visibility controls without flooding the Play screen.
 
-1. Move all Play text rendering into `renderStatic()`.
-2. Set `p-hr-desc` and `p-rr-desc` there too.
-3. Delete the stray top-level rendering block.
+---
 
-### Patch
+## Phase 1 — Adopt TSOP runtime & treatment rendering
+**Goal:** Replace the legacy random-walk runtime in `index.html` with the TSOP baseline/priority engine so vitals, treatments, injects, and audio behave consistently.
 
-```diff
---- a/index.html
-+++ b/index.html
-@@ -730,6 +730,39 @@ function renderStatic(){
-   const hrDesc = `Rate: ${desc.hrRate||'normal'} | Rhythm: ${desc.hrRhythm||'regular'} | Quality: ${desc.hrQuality||'normal'}`;
-   const rrDesc = `Rate: ${desc.rrRate||'normal'} | Rhythm: ${desc.rrRhythm||'regular'} | Quality: ${desc.rrQuality||'normal'}`;
- 
-+  // show HR/RR descriptors
-+  set('p-hr-desc', hrDesc);
-+  set('p-rr-desc', rrDesc);
-+
-   // SAMPLE block
-   if (byId('p-sample')){
-     const s = scenario.sample;
-     byId('p-sample').innerHTML =
-       `<div><strong>S:</strong> ${s.s||''}</div>
-        <div><strong>A:</strong> ${s.a||''}</div>
-        <div><strong>M:</strong> ${s.m||''}</div>
-        <div><strong>P:</strong> ${s.p||''}</div>
-        <div><strong>L:</strong> ${s.l||''}</div>
-        <div><strong>E:</strong> ${s.e||''}</div>`;
-   }
-+
-+  // OPQRST block
-+  if (byId('p-opqrst')){
-+    const o=scenario.opqrst||{};
-+    byId('p-opqrst').innerHTML =
-+      `<div><strong>O:</strong> ${o.o||''}</div>
-+       <div><strong>P:</strong> ${o.p||''}</div>
-+       <div><strong>Q:</strong> ${o.q||''}</div>
-+       <div><strong>R:</strong> ${o.r||''}</div>
-+       <div><strong>S:</strong> ${o.s||''}</div>
-+       <div><strong>T:</strong> ${o.t||''}</div>`;
-+  }
-+
-+  // Physical bullets
-+  const physEl = byId('p-physical');
-+  if (physEl){
-+    const raw = scenario.sample.phys || '';
-+    const items = raw.split(/\n+|[.;]\s+/).map(s=>s.trim()).filter(Boolean);
-+    physEl.innerHTML = items.length ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>` : '—';
-+  }
-+
-+  // Dispatch, GI, AVPU/NOI/C-spine
-+  const pd=byId('p-dispatch'), pg=byId('p-gi'), pa=byId('p-ancillary');
-+  if (pd) pd.textContent=scenario.text.dispatch||'';
-+  if (pg) pg.textContent=scenario.text.gi||'';
-+  if (pa) pa.innerHTML = `<div><strong>AVPU:</strong> ${scenario.text.avpu||''}</div>
-+    <div><strong>NOI/MOI:</strong> ${scenario.text.noi||''}</div>
-+    <div><strong>C-spine:</strong> ${scenario.text.cspine||''}</div>`;
-+
-+  // Skin triplet
-+  const skinEl=byId('p-skin');
-+  if (skinEl){
-+    skinEl.textContent = `${scenario.vitals.skinColor||'--'} / ${scenario.vitals.skinTemp||'--'} / ${scenario.vitals.skinMoist||'--'}`;
-+  }
-+
-+  // ALS badges and checkboxes
-+  const alsA=byId('als-badge'), alsP=byId('p-als-badge');
-+  if (alsA) alsA.classList.toggle('hidden', !scenario.flags.als);
-+  if (alsP) alsP.classList.toggle('hidden', !scenario.flags.als);
-+  const cb=byId('flag-als-build'), cp=byId('flag-als-play');
-+  if (cb) cb.checked=!!scenario.flags.als;
-+  if (cp) cp.checked=!!scenario.flags.als;
-+
-+  // Keep audio button visuals in sync each render (buttons themselves built elsewhere)
-+  if (typeof updateAudioButtonStates==='function') updateAudioButtonStates();
- }
- 
--// OPQRST block
--if (byId('p-opqrst')){
--  const o=scenario.opqrst||{};
--  byId('p-opqrst').innerHTML =
--    `<div><strong>O:</strong> ${o.o||''}</div>
--     <div><strong>P:</strong> ${o.p||''}</div>
--     <div><strong>Q:</strong> ${o.q||''}</div>
--     <div><strong>R:</strong> ${o.r||''}</div>
--     <div><strong>S:</strong> ${o.s||''}</div>
--     <div><strong>T:</strong> ${o.t||''}</div>`;
--}
--// Physical: bullet points under the AVPU block
--const physEl = byId('p-physical');
--if (physEl){
--  const raw = scenario.sample.phys || '';
--  const items = raw
--    .split(/\n+|[.;]\s+/)   // split on new lines or sentence-ish breaks
--    .map(s => s.trim())
--    .filter(Boolean);
--  physEl.innerHTML = items.length
--    ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>`
--    : '—';
--  }
--
--  const pd=byId('p-dispatch'), pg=byId('p-gi'), pa=byId('p-ancillary');
--  if (pd) pd.textContent=scenario.text.dispatch||'';
--  if (pg) pg.textContent=scenario.text.gi||'';
--  if (pa) pa.innerHTML = `<div><strong>AVPU:</strong> ${scenario.text.avpu||''}</div>
--    <div><strong>NOI/MOI:</strong> ${scenario.text.noi||''}</div>
--    <div><strong>C-spine:</strong> ${scenario.text.cspine||''}</div>`;
--
--  const skinEl=byId('p-skin');
--  if (skinEl){
--    skinEl.textContent = `${scenario.vitals.skinColor||'--'} / ${scenario.vitals.skinTemp||'--'} / ${scenario.vitals.skinMoist||'--'}`;
--  }
--
--  const alsA=byId('als-badge'), alsP=byId('p-als-badge');
--  if (alsA) alsA.classList.toggle('hidden', !scenario.flags.als);
--  if (alsP) alsP.classList.toggle('hidden', !scenario.flags.als);
--  const cb=byId('flag-als-build'), cp=byId('flag-als-play');
--  if (cb) cb.checked=!!scenario.flags.als;
--  if (cp) cp.checked=!!scenario.flags.als;
--
--  // Rebuild audio buttons, then sync their visual state (playing/idle)
--  renderAudioButtons();
--  updateAudioButtonStates();
-+// ⬆ moved into renderStatic()
- 
- function renderAll(){ renderStatic(); renderInjects(); }
-```
+1. **Reset flow parity**
+   - Mirror TSOP's `resetRun()` behavior: clear `injectAutoOff`, rebuild treatment buttons, seed vitals/baselines, and call `renderAll()` afterward.
+   - Ensure newborn/OB hooks (added in Phase 2) can register during reset.
+2. **Per-second vitals application**
+   - Replace the existing jitter in `applyEffectsPerSecond()` with TSOP's decay-to-baseline algorithm that honors treatment priority, overrides, min/cap, and decay flags.【F:TSOPs 2&3.html†L794-L912】
+   - Port any helper utilities required (e.g., `clampVitals`, `resolvePriority`).
+3. **Static render parity**
+   - Merge TSOP's `renderStatic()` updates so Play text, skin descriptors, HR/RR descriptors, and ALS badges refresh each render without duplicating DOM code.【F:TSOPs 2&3.html†L982-L1051】
+4. **Audio buttons**
+   - Update `renderAudioButtons()` to always build buttons (muted when empty) and call a lightweight state-sync helper each render.【F:TSOPs 2&3.html†L1517-L1554】
+5. **Regression checklist**
+   - Start/Pause/Reset flows work.
+   - Treatments toggle correctly and decay toward baseline when off.
+   - Audio buttons remain responsive (loop, play, stop).
 
-Now `renderAll()` (called by `resetRun()`, `tick()`, and `save()`) updates the Play screen after import.
+---
 
-**a.** Want me to also mirror the Build preview (“SAMPLE & Physical”) live with the same renderer?
-**b.** Add a tiny `renderPlayOnce()` to rebuild audio buttons only when audios change, not every tick?
+## Phase 2 — Integrate OB & newborn modules
+**Goal:** Bring the obstetric/newborn builder panels and runtime hooks from TSOP into the main app so Play displays the same extended content.
+
+1. **Builder mounts**
+   - Copy TSOP builder mount functions: backstory, talking points, APGAR, newborn vitals, newborn treatments, and supporting helpers (`drawNbTreatments`, etc.).【F:TSOPs 2&3.html†L2110-L2299】
+   - Invoke these mounts during app initialization alongside existing `drawInjects()` and treatment rendering.
+2. **Scenario schema expansion**
+   - Extend the default scenario object to include `text.backstory`, `text.talkingPoints`, `apgar`, `apgarNotes`, `nbVitals`, and `nbTreatments` with TSOP defaults.【F:TSOPs 2&3.html†L2791-L2859】
+   - Update `save()`/`load()` plus any migration helpers to persist these fields; ensure legacy scenarios default missing keys.
+3. **Runtime hooks**
+   - Port `resetRunNB`, `applyEffectsPerSecondNB`, `renderOBPlay`, `buildNbTxButtons`, and integrate them into the standard tick/reset/render pipeline.【F:TSOPs 2&3.html†L2398-L2453】【F:TSOPs 2&3.html†L2572-L2593】
+   - Confirm newborn vitals reset correctly and respond to treatments/injects.
+4. **Validation & testing**
+   - Verify builder inputs map to Play view.
+   - Ensure exports/imports carry the expanded data.
+
+---
+
+## Phase 3 — Adopt TSOP utility enhancements
+**Goal:** Align utility features (inject beep patterns, global reset, ETA pill placement) to improve usability.
+
+1. **Inject beep patterns**
+   - Add the TSOP dropdown UI to each inject row and adapt `blast()`/`tick()` to honor the selected pattern without duplicating wrappers.【F:TSOPs 2&3.html†L2640-L2774】
+2. **Global reset button**
+   - Introduce the TSOP "Clear All" control that regenerates the expanded default scenario and re-renders the builder/play surfaces.【F:TSOPs 2&3.html†L2791-L2859】
+3. **ETA pill relocation**
+   - Move the editable ETA pill from the sticky footer into the lung-sound header per TSOP, ensuring a single authoritative updater remains.【F:TSOPs 2&3.html†L2880-L2938】
+4. **Smoke tests**
+   - Confirm beep selection persists per inject.
+   - Verify global reset wipes both legacy and new fields.
+   - Validate ETA editing still works in Play mode.
+
+---
+
+## Phase 4 — Reorganize builder UI & add "Display on Play" toggles
+**Goal:** Prevent blank Play boxes by grouping builder sections and letting authors choose what renders.
+
+1. **Builder layout**
+   - Restructure the builder (`#build`) into collapsible sections (e.g., `<details>`/accordion) covering Meta, Text, SAMPLE, OPQRST, Treatments, OB/Newborn, etc.
+   - Default empty sections to collapsed to avoid visual clutter.
+2. **Visibility controls**
+   - Add a "Display on Play" checkbox (or toggle) to each major section; persist state in `scenario.displayOnPlay` (new object with sensible defaults).
+   - Update `save()`/`load()` to include these flags and migrate older saves to `true`.
+3. **Conditional rendering**
+   - Update `renderStatic()` and OB/Newborn render helpers to skip sections whose flag is `false`, ensuring the Play screen only shows opted-in content.
+   - Hide placeholder boxes when a section has no visible content.
+4. **UX validation**
+   - Confirm builder preview mirrors Play output when toggling visibility.
+   - Ensure toggles do not break existing autosave or export behavior.
+
+---
+
+## Final verification checklist
+- ✅ Automated tests or lint (if available).
+- ✅ Manual Playthrough: create a full scenario using new builder sections, ensure Play reflects visibility toggles and runtime behavior.
+- ✅ Scenario import/export roundtrip with new schema fields.
+- ✅ Confirm no empty boxes appear on Play when sections are hidden.
+
+Document any deviations, TODOs, or follow-up questions directly beneath this plan in future revisions.
