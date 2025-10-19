@@ -356,14 +356,38 @@ header .title{
         </div>
       </details>
     <div class="divider"></div>
-    <h3>Pre-saved Scenarios</h3>
-    <div id="preset-load" class="row">
-      <button class="btn" data-slot="1">Slot 1</button>
-      <button class="btn" data-slot="2">Slot 2</button>
-      <button class="btn" data-slot="3">Slot 3</button>
-      <button class="btn" data-slot="4">Slot 4</button>
+    <h3>GitHub Scenarios</h3>
+    <div id="preset-load" class="kv" style="padding:12px; display:grid; gap:12px;">
+      <div class="grid">
+        <label>Owner / Org <input id="gh-owner" type="text" placeholder="e.g., county-ems"></label>
+        <label>Repository <input id="gh-repo" type="text" placeholder="scenario-library"></label>
+        <label>Branch <input id="gh-branch" type="text" value="main"></label>
+        <label>Folder (optional) <input id="gh-path" type="text" placeholder="scenarios/med"></label>
+      </div>
+      <div class="grid">
+        <label>Committer Name <input id="gh-committer-name" type="text" placeholder="EMS Scenario Builder"></label>
+        <label>Committer Email <input id="gh-committer-email" type="email" placeholder="ems-scenarios@example.com"></label>
+        <label>Token (classic or fine-grained) <input id="gh-token" type="password" autocomplete="off" placeholder="ghp_..."></label>
+        <label>Scenario file name <input id="gh-filename" type="text" placeholder="my-scenario.json"></label>
+      </div>
+      <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
+        <label style="min-width:240px; flex:1 1 260px;">
+          Remote scenarios
+          <select id="gh-scenario-select">
+            <option value="">(none loaded)</option>
+          </select>
+        </label>
+        <button id="gh-refresh" class="btn">Refresh list</button>
+        <button id="gh-load" class="btn">Load selected</button>
+        <button id="gh-save" class="btn primary">Save to GitHub</button>
+      </div>
+      <div id="gh-status" class="mini"></div>
+      <div class="help">
+        Provide a personal access token with <code>repo</code> scope (fine-grained tokens need contents:read/write).
+        The folder is optional; leave blank to use the repository root. Scenario files are stored as JSON just like
+        the local export. The token is stored in this browser only.
+      </div>
     </div>
-    <div class="mini">Click a slot → enter password → that scenario loads into the builder.</div>
       <div class="divider"></div>
       <h3>Vitals</h3>
       <div class="three">
@@ -597,13 +621,122 @@ window.genCipher = async (label, password) => {
   console.log({ label, data: env });
   return env;
 };
+const GH_CONFIG_KEY = 'emtScenarioGithubConfigV1';
+const githubState = { items: [], lastSelected: '' };
+
+function setGitHubStatus(message, mode='info'){
+  const el = byId('gh-status');
+  if (!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('error', mode === 'error');
+}
+
 function renderPresetButtons(){
-  const host = byId('preset-load'); if(!host) return;
-  host.querySelectorAll('button[data-slot]').forEach(btn=>{
-    const idx = (+btn.dataset.slot)-1, rec = lockedScenarios[idx];
-    if (rec?.label) btn.textContent = rec.label;
-    btn.style.opacity = rec?.data ? '1' : '0.6';
+  const select = byId('gh-scenario-select');
+  if (!select) return;
+  const prev = githubState.lastSelected || select.value;
+  select.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = githubState.items.length ? 'Select a scenario…' : '(none found)';
+  select.appendChild(placeholder);
+  githubState.items.forEach(item => {
+    const opt = document.createElement('option');
+    opt.value = item.path;
+    opt.textContent = item.displayName;
+    select.appendChild(opt);
   });
+  if (prev && githubState.items.some(item => item.path === prev)){
+    select.value = prev;
+  }else{
+    select.value = '';
+    if (!githubState.items.some(item => item.path === githubState.lastSelected)){
+      githubState.lastSelected = '';
+      rememberSelection('', byId('gh-filename')?.value?.trim() || '');
+    }
+  }
+}
+
+function githubHeaders(token){
+  const headers = { 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+function encodeGitHubPath(path){
+  if (!path) return '';
+  return path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+}
+
+function getGitHubConfig(){
+  const owner = byId('gh-owner')?.value?.trim() || '';
+  const repo = byId('gh-repo')?.value?.trim() || '';
+  const branch = byId('gh-branch')?.value?.trim() || 'main';
+  const directory = (byId('gh-path')?.value || '').trim().replace(/^\/+|\/+$/g,'');
+  const token = byId('gh-token')?.value?.trim() || '';
+  const committerName = byId('gh-committer-name')?.value?.trim() || '';
+  const committerEmail = byId('gh-committer-email')?.value?.trim() || '';
+  return { owner, repo, branch, directory, token, committerName, committerEmail };
+}
+
+function persistGitHubConfig(config){
+  try{
+    localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(config));
+  }catch(err){
+    console.warn('Unable to persist GitHub config', err);
+  }
+}
+
+function hydrateGitHubConfig(){
+  const raw = localStorage.getItem(GH_CONFIG_KEY);
+  if (!raw) return;
+  try{
+    const cfg = JSON.parse(raw);
+    const apply = (id, value) => { const el = byId(id); if (el && value != null) el.value = value; };
+    apply('gh-owner', cfg.owner || '');
+    apply('gh-repo', cfg.repo || '');
+    apply('gh-branch', cfg.branch || '');
+    apply('gh-path', cfg.directory || '');
+    apply('gh-token', cfg.token || '');
+    apply('gh-committer-name', cfg.committerName || '');
+    apply('gh-committer-email', cfg.committerEmail || '');
+    apply('gh-filename', cfg.lastFile || '');
+    githubState.lastSelected = cfg.lastSelected || '';
+  }catch(err){
+    console.warn('Unable to read GitHub config', err);
+  }
+}
+
+function rememberSelection(path, file){
+  const current = getGitHubConfig();
+  persistGitHubConfig({ ...current, lastSelected: path || '', lastFile: file || '' });
+}
+
+function validateGitHubConfig(config){
+  const missing = [];
+  if (!config.owner) missing.push('owner');
+  if (!config.repo) missing.push('repo');
+  if (!config.branch) missing.push('branch');
+  if (missing.length){
+    return { valid:false, message:`Provide a GitHub ${missing.join(', ')}.` };
+  }
+  if (!config.token){
+    return { valid:false, message:'A GitHub token is required to read/write scenarios.' };
+  }
+  return { valid:true };
+}
+
+function encodeScenarioContent(json){
+  const bytes = te.encode(json);
+  let binary = '';
+  bytes.forEach(b => { binary += String.fromCharCode(b); });
+  return btoa(binary);
+}
+
+function decodeScenarioContent(b64){
+  const binary = atob(b64);
+  const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+  return td.decode(bytes);
 }
 
 /* ---------------- Utilities ---------------- */
@@ -1718,6 +1851,21 @@ function applyInjects(){
 }
 
 /* ---------------- Persistence + wiring ---------------- */
+function scenarioForStorage(){
+  const copy = JSON.parse(JSON.stringify(scenario));
+  if (Array.isArray(copy.audios)){
+    copy.audios.forEach(a=>{
+      if (!a) return;
+      delete a.data;
+      delete a._objectUrl;
+      if (a.url && a.url.startsWith('blob:')){
+        delete a.url;
+      }
+    });
+  }
+  return copy;
+}
+
 function save(){
   // gather form
   const mt=byId('meta-title'); if(mt) scenario.meta.title=mt.value;
@@ -1777,23 +1925,6 @@ function save(){
     }
   }
 
-  function scenarioForStorage(){
-  // deep clone, then strip volatile / huge fields
-  const copy = JSON.parse(JSON.stringify(scenario));
-  if (Array.isArray(copy.audios)){
-    copy.audios.forEach(a=>{
-      if (!a) return;
-      delete a.data;        // strip any legacy base64
-      delete a._objectUrl;  // strip runtime object URLs
-      // keep a.url if it’s an http(s) link; object URLs won’t survive reloads anyway
-      if (a.url && a.url.startsWith('blob:')) {
-        // blob: URLs are session-only; don’t persist them
-        delete a.url;
-      }
-    });
-  }
-  return copy;
-}
 try{
   localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenarioForStorage()));
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
@@ -1852,6 +1983,196 @@ function load(){
   drawAudioEditor();   // build list UI
 
   drawInjects(); drawTreatments(); buildTxButtons(); resetRun(); renderPresetButtons();
+}
+
+function buildGitHubFilePath(config, filename){
+  const parts = [];
+  if (config.directory) parts.push(config.directory);
+  if (filename) parts.push(filename);
+  return encodeGitHubPath(parts.join('/'));
+}
+
+async function refreshGitHubScenarios(){
+  const config = getGitHubConfig();
+  const file = byId('gh-filename')?.value?.trim() || '';
+  persistGitHubConfig({ ...config, lastSelected: githubState.lastSelected || '', lastFile: file });
+  const check = validateGitHubConfig(config);
+  if (!check.valid){
+    setGitHubStatus(check.message, 'error');
+    githubState.items = [];
+    renderPresetButtons();
+    return;
+  }
+  const owner = encodeURIComponent(config.owner);
+  const repo = encodeURIComponent(config.repo);
+  const dirPath = buildGitHubFilePath(config, '');
+  const qs = new URLSearchParams({ ref: config.branch });
+  const pathSegment = dirPath ? `contents/${dirPath}` : 'contents';
+  const url = `https://api.github.com/repos/${owner}/${repo}/${pathSegment}?${qs.toString()}`;
+  setGitHubStatus('Loading scenarios from GitHub…');
+  try{
+    const res = await fetch(url, { headers: githubHeaders(config.token) });
+    if (res.status === 404){
+      githubState.items = [];
+      renderPresetButtons();
+      setGitHubStatus('Folder not found on GitHub. It will be created on first save.', 'error');
+      return;
+    }
+    if (!res.ok){
+      const text = await res.text();
+      throw new Error(`GitHub list failed: ${res.status} ${res.statusText} ${text}`);
+    }
+    const data = await res.json();
+    const entries = Array.isArray(data) ? data : [data];
+    const items = entries
+      .filter(entry => entry.type === 'file' && entry.name.toLowerCase().endsWith('.json'))
+      .map(entry => ({
+        name: entry.name,
+        displayName: entry.name.replace(/\.json$/i, ''),
+        path: entry.path,
+        sha: entry.sha
+      }))
+      .sort((a,b)=>a.displayName.localeCompare(b.displayName, undefined, { sensitivity:'base', numeric:true }));
+    githubState.items = items;
+    renderPresetButtons();
+    if (!items.length){
+      setGitHubStatus('No JSON scenario files found in that folder yet.');
+    }else{
+      setGitHubStatus(`Loaded ${items.length} scenario${items.length===1?'':'s'} from GitHub.`);
+    }
+  }catch(err){
+    console.error(err);
+    setGitHubStatus(err.message || 'Unable to load GitHub scenarios.', 'error');
+  }
+}
+
+async function saveScenarioToGitHub(){
+  const config = getGitHubConfig();
+  const fileInput = byId('gh-filename');
+  let filename = (fileInput?.value || '').trim();
+  if (!filename){
+    const safeTitle = (scenario.meta?.title || 'scenario')
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g,'-')
+      .replace(/-+/g,'-')
+      .replace(/^-|-$/g,'');
+    filename = (safeTitle || 'scenario') + '.json';
+    if (fileInput) fileInput.value = filename;
+  }
+  if (!filename.toLowerCase().endsWith('.json')){
+    filename = filename.replace(/\.+$/,'') + '.json';
+    if (fileInput) fileInput.value = filename;
+  }
+  filename = filename.replace(/\s+/g,'-');
+  if (fileInput) fileInput.value = filename;
+  const check = validateGitHubConfig(config);
+  if (!check.valid){
+    setGitHubStatus(check.message, 'error');
+    return;
+  }
+  persistGitHubConfig({ ...config, lastSelected: githubState.lastSelected || '', lastFile: filename });
+  const owner = encodeURIComponent(config.owner);
+  const repo = encodeURIComponent(config.repo);
+  const filePath = buildGitHubFilePath(config, filename);
+  const baseUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
+  const qs = new URLSearchParams({ ref: config.branch });
+  let sha;
+  try{
+    const checkRes = await fetch(`${baseUrl}?${qs.toString()}`, { headers: githubHeaders(config.token) });
+    if (checkRes.ok){
+      const existing = await checkRes.json();
+      sha = existing.sha;
+    }else if (checkRes.status !== 404){
+      const text = await checkRes.text();
+      throw new Error(`GitHub lookup failed: ${checkRes.status} ${checkRes.statusText} ${text}`);
+    }
+  }catch(err){
+    console.error(err);
+    setGitHubStatus(err.message || 'Unable to check existing file on GitHub.', 'error');
+    return;
+  }
+  setGitHubStatus('Saving scenario to GitHub…');
+  try{
+    save();
+    const json = JSON.stringify(scenarioForStorage());
+    const body = {
+      message: `${sha ? 'Update' : 'Create'} scenario ${filename}`,
+      content: encodeScenarioContent(json),
+      branch: config.branch,
+      committer: {
+        name: config.committerName || 'EMS Scenario Builder',
+        email: config.committerEmail || 'ems-scenarios@example.com'
+      }
+    };
+    if (sha) body.sha = sha;
+    const putRes = await fetch(baseUrl, {
+      method: 'PUT',
+      headers: { ...githubHeaders(config.token), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!putRes.ok){
+      const text = await putRes.text();
+      throw new Error(`GitHub save failed: ${putRes.status} ${putRes.statusText} ${text}`);
+    }
+    await putRes.json();
+    const fullPath = (config.directory ? `${config.directory.replace(/\/+$/,'')}/` : '') + filename;
+    githubState.lastSelected = fullPath;
+    rememberSelection(fullPath, filename);
+    setGitHubStatus('Scenario saved. Refreshing list…');
+    await refreshGitHubScenarios();
+    const select = byId('gh-scenario-select');
+    if (select) select.value = githubState.lastSelected;
+  }catch(err){
+    console.error(err);
+    setGitHubStatus(err.message || 'Unable to save scenario to GitHub.', 'error');
+  }
+}
+
+async function loadScenarioFromGitHub(){
+  const config = getGitHubConfig();
+  const check = validateGitHubConfig(config);
+  if (!check.valid){
+    setGitHubStatus(check.message, 'error');
+    return;
+  }
+  const select = byId('gh-scenario-select');
+  const path = select?.value || githubState.lastSelected || '';
+  if (!path){
+    setGitHubStatus('Select a scenario from the dropdown first.', 'error');
+    return;
+  }
+  const owner = encodeURIComponent(config.owner);
+  const repo = encodeURIComponent(config.repo);
+  const encodedPath = encodeGitHubPath(path);
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(config.branch)}`;
+  setGitHubStatus('Loading scenario from GitHub…');
+  try{
+    const res = await fetch(url, { headers: githubHeaders(config.token) });
+    if (!res.ok){
+      const text = await res.text();
+      throw new Error(`GitHub load failed: ${res.status} ${res.statusText} ${text}`);
+    }
+    const data = await res.json();
+    if (!data.content){
+      throw new Error('GitHub response missing file content.');
+    }
+    const json = decodeScenarioContent(data.content);
+    const obj = JSON.parse(json);
+    scenario = obj;
+    ensureVitalsDefaults();
+    localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+    hydrateSkinInputs();
+    load();
+    githubState.lastSelected = path;
+    const filename = path.split('/').pop();
+    const fileInput = byId('gh-filename');
+    if (fileInput && filename) fileInput.value = filename;
+    rememberSelection(path, filename);
+    setGitHubStatus(`Loaded scenario “${data.name || filename}” from GitHub.`);
+  }catch(err){
+    console.error(err);
+    setGitHubStatus(err.message || 'Unable to load scenario from GitHub.', 'error');
+  }
 }
 function wire(){
   // mode
@@ -1927,7 +2248,7 @@ safeOn(byId('add-audio'),'click',()=>{
   ['meta-title','meta-author','txt-dispatch','txt-gi','txt-avpu','txt-noi','txt-cspine','min',
   'v-hr','v-rr','v-spo2','v-sbp','v-dbp','v-cbg',
   's-s','s-a','s-m','s-p','s-l','s-e','phys',
-  'o-o','o-p','o-q','o-r','o-s','o-t','audio-label','audio-url', 
+  'o-o','o-p','o-q','o-r','o-s','o-t','audio-label','audio-url',
   'v-hr-rate','v-hr-rhythm','v-hr-quality','v-rr-rate','v-rr-rhythm','v-rr-quality','v-skin-color','v-skin-temp','v-skin-moist']
   .forEach(id=> safeOn(byId(id),'input',save));
 
@@ -1935,6 +2256,27 @@ safeOn(byId('add-audio'),'click',()=>{
   safeOn(byId('add-tx'),'click',()=>{ scenario.treatments.push({id:`tx${Date.now()}`,label:"New Treatment",mode:"toggle",eff:{},cap:{}}); save(); });
   safeOn(byId('add-inject'),'click',addInject);
   safeOn(byId('apply-injects'),'click',applyInjects);
+  ['gh-owner','gh-repo','gh-branch','gh-path','gh-token','gh-committer-name','gh-committer-email','gh-filename']
+    .forEach(id => safeOn(byId(id),'change',()=>{
+      const cfg = getGitHubConfig();
+      const file = byId('gh-filename')?.value?.trim() || '';
+      persistGitHubConfig({ ...cfg, lastSelected: githubState.lastSelected || '', lastFile: file });
+    }));
+  safeOn(byId('gh-refresh'),'click',refreshGitHubScenarios);
+  safeOn(byId('gh-save'),'click',saveScenarioToGitHub);
+  safeOn(byId('gh-load'),'click',loadScenarioFromGitHub);
+  safeOn(byId('gh-scenario-select'),'change',(e)=>{
+    const value = e.target.value || '';
+    githubState.lastSelected = value;
+    if (value){
+      const match = githubState.items.find(item=>item.path === value);
+      const fileInput = byId('gh-filename');
+      if (fileInput && match?.name) fileInput.value = match.name;
+      rememberSelection(value, match?.name || fileInput?.value || '');
+    }else{
+      rememberSelection('', byId('gh-filename')?.value?.trim() || '');
+    }
+  });
   // export/import
   safeOn(byId('export'),'click',()=>{
     const a=document.createElement('a');
@@ -1955,17 +2297,6 @@ safeOn(byId('add-audio'),'click',()=>{
     }catch{ alert('Invalid JSON'); } };
     r.readAsText(f);
   });
-  // Pre-saved scenario loader
-const presetHost = byId('preset-load');
-if (presetHost){
-  presetHost.addEventListener('click', async (e)=>{
-    const b = e.target.closest('button[data-slot]'); if (!b) return;
-    const idx = (+b.dataset.slot) - 1;
-    const label = lockedScenarios[idx]?.label || ('Slot ' + (idx+1));
-    const pw = prompt('Password for ' + label + ':'); if (pw == null) return;
-    await loadLocked(idx, pw);
-  });
-}
 } // <-- close wire()
 function ensureVitalsDefaults(){
   window.scenario = window.scenario || {};
@@ -1988,7 +2319,17 @@ function hydrateSkinInputs(){
   if (m) m.value = scenario.vitals.skinMoist || m.value;
 }
 
-document.addEventListener('DOMContentLoaded', ()=>{ ensureVitalsDefaults(); wire(); load(); });
+document.addEventListener('DOMContentLoaded', ()=>{
+  ensureVitalsDefaults();
+  hydrateGitHubConfig();
+  wire();
+  load();
+  renderPresetButtons();
+  const cfg = getGitHubConfig();
+  if (cfg.owner && cfg.repo && cfg.token){
+    refreshGitHubScenarios();
+  }
+});
 </script>
 <!-- URGENT modal -->
 <div id="urgent-modal" class="modal" aria-hidden="true">
