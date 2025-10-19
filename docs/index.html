@@ -405,15 +405,6 @@ header .title{
           <button id="apply-injects" class="btn primary">Apply to current run</button>
         </div>
       </details>
-    <div class="divider"></div>
-    <h3>Pre-saved Scenarios</h3>
-    <div id="preset-load" class="row">
-      <button class="btn" data-slot="1">Slot 1</button>
-      <button class="btn" data-slot="2">Slot 2</button>
-      <button class="btn" data-slot="3">Slot 3</button>
-      <button class="btn" data-slot="4">Slot 4</button>
-    </div>
-    <div class="mini">Click a slot → enter password → that scenario loads into the builder.</div>
       <div class="divider"></div>
       <h3>Vitals</h3>
       <div class="three">
@@ -585,80 +576,90 @@ header .title{
 
 <script>
 "use strict";
-/* ---------- Password-locked scenarios (client-side AES-GCM) ---------- */
-const lockedScenarios = [
-  { label: 'Slot 1', data: '' }, // paste encrypted strings into "data"
-  { label: 'Slot 2', data: '' },
-  { label: 'Slot 3', data: '' },
-  { label: 'Slot 4', data: '' }
-];
+/* ---------- Named scenario library ---------- */
+const SCENARIO_LIBRARY_KEY = 'emtScenarioLibrary';
 
-const te = new TextEncoder(), td = new TextDecoder();
-function b64u(bytes){
-  let s = btoa(String.fromCharCode(...bytes));
-  return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
-}
-function b64uToBytes(s){
-  s = s.replace(/-/g,'+').replace(/_/g,'/');
-  while (s.length % 4) s += '=';
-  const bin = atob(s), out = new Uint8Array(bin.length);
-  for (let i=0;i<bin.length;i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-async function deriveKey(password, salt){
-  const km = await crypto.subtle.importKey('raw', te.encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name:'PBKDF2', salt, iterations:250000, hash:'SHA-256' },
-    km,
-    { name:'AES-GCM', length:256 },
-    false,
-    ['encrypt','decrypt']
-  );
-}
-async function encryptEnvelope(plainText, password){
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv   = crypto.getRandomValues(new Uint8Array(12));
-  const key  = await deriveKey(password, salt);
-  const ct   = new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, te.encode(plainText)));
-  return `v1.${b64u(salt)}.${b64u(iv)}.${b64u(ct)}`;
-}
-async function decryptEnvelope(envelope, password){
-  const [v, s, i, c] = String(envelope).split('.');
-  if (v !== 'v1') throw new Error('Unsupported version');
-  const salt = b64uToBytes(s), iv = b64uToBytes(i), ct = b64uToBytes(c);
-  const key  = await deriveKey(password, salt);
-  const pt   = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, ct);
-  return td.decode(pt);
-}
-async function loadLocked(slotIndex, password){
-  const rec = lockedScenarios[slotIndex];
-  if (!rec || !rec.data){ alert('This slot is empty.'); return; }
+function getScenarioLibrary(){
   try{
-    const json = await decryptEnvelope(rec.data, password);
-    const obj  = JSON.parse(json);
-    obj.prompts = [];             // keep prompts removed
-    scenario = obj;
-    localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
-    load();
-    alert('Loaded: ' + (obj.meta?.title || rec.label || ('Slot ' + (slotIndex+1))));
-  }catch(e){
-    console.error(e);
-    alert('Incorrect password or corrupt scenario.');
+    const raw = localStorage.getItem(SCENARIO_LIBRARY_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  }catch(err){
+    console.warn('Unable to parse scenario library:', err);
+  }
+  return {};
+}
+
+function setScenarioLibrary(lib){
+  try{
+    localStorage.setItem(SCENARIO_LIBRARY_KEY, JSON.stringify(lib));
+  }catch(err){
+    console.warn('Unable to persist scenario library:', err);
   }
 }
-// helper to generate ciphertext for the *current* scenario (use in DevTools)
-window.genCipher = async (label, password) => {
-  const env = await encryptEnvelope(JSON.stringify(scenario), password);
-  console.log({ label, data: env });
-  return env;
-};
-function renderPresetButtons(){
-  const host = byId('preset-load'); if(!host) return;
-  host.querySelectorAll('button[data-slot]').forEach(btn=>{
-    const idx = (+btn.dataset.slot)-1, rec = lockedScenarios[idx];
-    if (rec?.label) btn.textContent = rec.label;
-    btn.style.opacity = rec?.data ? '1' : '0.6';
+
+function saveNamedScenario(name){
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Scenario name is required.');
+  const lib = getScenarioLibrary();
+  lib[trimmed] = scenarioForStorage();
+  setScenarioLibrary(lib);
+  refreshScenarioLibraryDropdown(trimmed);
+  return trimmed;
+}
+
+function loadNamedScenario(name){
+  const trimmed = (name || '').trim();
+  if (!trimmed) throw new Error('Scenario name is required.');
+  const lib = getScenarioLibrary();
+  const payload = lib[trimmed];
+  if (!payload) throw new Error('Scenario not found.');
+  scenario = JSON.parse(JSON.stringify(payload));
+  localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario));
+  load();
+  refreshScenarioLibraryDropdown(trimmed);
+  return trimmed;
+}
+
+function refreshScenarioLibraryDropdown(selectedName){
+  const select = byId('scenario-library');
+  if (!select) return;
+  const lib = getScenarioLibrary();
+  const names = Object.keys(lib).sort((a,b)=>a.localeCompare(b, undefined, {sensitivity:'base'}));
+  const previous = select.value;
+  select.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = names.length ? 'Select a scenario…' : 'No saved scenarios';
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  select.appendChild(placeholder);
+  names.forEach(name=>{
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    if ((selectedName && name === selectedName) || (!selectedName && name === previous)){
+      opt.selected = true;
+      placeholder.selected = false;
+    }
+    select.appendChild(opt);
   });
+}
+
+function scenarioForStorage(){
+  const copy = JSON.parse(JSON.stringify(scenario));
+  if (Array.isArray(copy.audios)){
+    copy.audios.forEach(a=>{
+      if (!a) return;
+      delete a.data;
+      delete a._objectUrl;
+      if (a.url && a.url.startsWith('blob:')){
+        delete a.url;
+      }
+    });
+  }
+  return copy;
 }
 
 /* ---------------- Utilities ---------------- */
@@ -1908,23 +1909,6 @@ function save(){
     scenario.displayOnPlay[key] = !!cb.checked;
   });
 
-  function scenarioForStorage(){
-  // deep clone, then strip volatile / huge fields
-  const copy = JSON.parse(JSON.stringify(scenario));
-  if (Array.isArray(copy.audios)){
-    copy.audios.forEach(a=>{
-      if (!a) return;
-      delete a.data;        // strip any legacy base64
-      delete a._objectUrl;  // strip runtime object URLs
-      // keep a.url if it’s an http(s) link; object URLs won’t survive reloads anyway
-      if (a.url && a.url.startsWith('blob:')) {
-        // blob: URLs are session-only; don’t persist them
-        delete a.url;
-      }
-    });
-  }
-  return copy;
-}
 try{
   localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenarioForStorage()));
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
@@ -1970,6 +1954,17 @@ function load(){
   setVal('v-skin-temp', scenario.vitals.skinTemp);
   setVal('v-skin-moist', scenario.vitals.skinMoist);
 
+  if (scenario.apgarNotes){
+    Object.entries(scenario.apgarNotes.one || {}).forEach(([k,val])=>{
+      const el = byId(`apgar1note-${k}`);
+      if (el) el.value = val || '';
+    });
+    Object.entries(scenario.apgarNotes.five || {}).forEach(([k,val])=>{
+      const el = byId(`apgar5note-${k}`);
+      if (el) el.value = val || '';
+    });
+  }
+
   if(!scenario.opqrst) scenario.opqrst = {o:"",p:"",q:"",r:"",s:"",t:""};
     const setInput = (id,val)=>{ const el=byId(id); if(el) el.value = val || ''; };
     setInput('o-o', scenario.opqrst.o);
@@ -1991,7 +1986,9 @@ function load(){
   drawAudioEditor();   // build list UI
 
   hydrateBuilderInputs();
-  drawInjects(); drawTreatments(); buildTxButtons(); resetRun(); renderPresetButtons();
+  drawInjects(); drawTreatments(); buildTxButtons();
+  refreshScenarioLibraryDropdown();
+  resetRun();
 }
 function wire(){
   // mode
@@ -2096,17 +2093,44 @@ safeOn(byId('add-audio'),'click',()=>{
     }catch{ alert('Invalid JSON'); } };
     r.readAsText(f);
   });
-  // Pre-saved scenario loader
-const presetHost = byId('preset-load');
-if (presetHost){
-  presetHost.addEventListener('click', async (e)=>{
-    const b = e.target.closest('button[data-slot]'); if (!b) return;
-    const idx = (+b.dataset.slot) - 1;
-    const label = lockedScenarios[idx]?.label || ('Slot ' + (idx+1));
-    const pw = prompt('Password for ' + label + ':'); if (pw == null) return;
-    await loadLocked(idx, pw);
+  safeOn(byId('save-scenario'),'click',()=>{
+    save();
+    const suggestion = (scenario.meta?.title || '').trim();
+    const name = prompt('Save scenario as:', suggestion);
+    if (name == null) return;
+    const trimmed = name.trim();
+    if (!trimmed){
+      alert('Scenario name cannot be empty.');
+      return;
+    }
+    const lib = getScenarioLibrary();
+    if (lib[trimmed] && !confirm(`Replace saved scenario "${trimmed}"?`)) return;
+    try{
+      saveNamedScenario(trimmed);
+      alert(`Saved scenario "${trimmed}".`);
+    }catch(err){
+      console.error(err);
+      alert('Unable to save scenario. See console for details.');
+    }
   });
-}
+  safeOn(byId('load-scenario'),'click',()=>{
+    const select = byId('scenario-library');
+    if (!select) return;
+    const choice = select.value;
+    if (!choice){
+      alert('Select a saved scenario to load.');
+      select.focus();
+      return;
+    }
+    try{
+      loadNamedScenario(choice);
+      alert(`Loaded scenario "${choice}".`);
+    }catch(err){
+      console.error(err);
+      alert('Unable to load scenario. It may be missing or corrupted.');
+      refreshScenarioLibraryDropdown();
+    }
+  });
 } // <-- close wire()
 
 function ensureScenarioDefaults(){
@@ -2177,6 +2201,17 @@ function hydrateBuilderInputs(){
     if (el.type === 'checkbox') el.checked = !!val;
     else el.value = val;
   });
+
+  if (scenario.apgarNotes){
+    Object.entries(scenario.apgarNotes.one || {}).forEach(([k,val])=>{
+      const el = byId(`apgar1note-${k}`);
+      if (el) el.value = val || '';
+    });
+    Object.entries(scenario.apgarNotes.five || {}).forEach(([k,val])=>{
+      const el = byId(`apgar5note-${k}`);
+      if (el) el.value = val || '';
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -2310,6 +2345,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     `).join("");
   }
 
+  function apgarNoteInputs(idPrefix){
+    return APGAR_DOMAINS.map(([k,label])=>`
+      <label>${label} Notes
+        <textarea id="${idPrefix}-${k}" rows="2" placeholder="Notes for ${label}"></textarea>
+      </label>
+    `).join("");
+  }
+
   function apgarTotal(node){ return (node.appearance|0)+(node.pulse|0)+(node.grimace|0)+(node.activity|0)+(node.respiration|0); }
 
   function mountApgarBuild(){
@@ -2326,10 +2369,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
           <div>
             <div class="badge">1-minute</div>
             <div class="grid" style="margin-top:8px">${apgarSelect('apgar1')}</div>
+            <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar1note')}</div>
           </div>
           <div>
             <div class="badge">5-minutes</div>
             <div class="grid" style="margin-top:8px">${apgarSelect('apgar5')}</div>
+            <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar5note')}</div>
           </div>
         </div>
         <div class="mini" id="apgar-build-totals" style="margin-top:6px"></div>
@@ -2340,6 +2385,31 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const s1 = byId(`apgar1-${k}`), s5 = byId(`apgar5-${k}`);
       if(s1){ s1.value = String(scenario.apgar.one[k] ?? 0); s1.onchange = ()=>{ scenario.apgar.one[k]=+s1.value|0; saveSafe(); updateApgarBuildTotals(); renderApgarPlayScores(); }; }
       if(s5){ s5.value = String(scenario.apgar.five[k] ?? 0); s5.onchange = ()=>{ scenario.apgar.five[k]=+s5.value|0; saveSafe(); updateApgarBuildTotals(); renderApgarPlayScores(); }; }
+      const n1 = byId(`apgar1note-${k}`), n5 = byId(`apgar5note-${k}`);
+      if(n1){
+        n1.value = scenario.apgarNotes?.one?.[k] || '';
+        const onNote = ()=>{
+          scenario.apgarNotes = scenario.apgarNotes || {one:{},five:{}};
+          scenario.apgarNotes.one = scenario.apgarNotes.one || {};
+          scenario.apgarNotes.one[k] = n1.value;
+          saveSafe();
+          renderApgarPlayScores();
+        };
+        n1.addEventListener('input', onNote);
+        n1.addEventListener('change', onNote);
+      }
+      if(n5){
+        n5.value = scenario.apgarNotes?.five?.[k] || '';
+        const onNote = ()=>{
+          scenario.apgarNotes = scenario.apgarNotes || {one:{},five:{}};
+          scenario.apgarNotes.five = scenario.apgarNotes.five || {};
+          scenario.apgarNotes.five[k] = n5.value;
+          saveSafe();
+          renderApgarPlayScores();
+        };
+        n5.addEventListener('input', onNote);
+        n5.addEventListener('change', onNote);
+      }
     });
     const apToggle = block.querySelector('input[data-display-key="apgar"]');
     if (apToggle){
@@ -2607,11 +2677,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
       </div>
     `);
     anchor.parentElement.insertBefore(wrap, anchor.nextSibling);
-    APGAR_DOMAINS.forEach(([k])=>{
-      const n1 = byId(`apnote-one-${k}`), n5 = byId(`apnote-five-${k}`);
-      if(n1){ n1.value = scenario.apgarNotes.one[k]||''; n1.addEventListener('input', ()=>{ scenario.apgarNotes.one[k]=n1.value; saveSafe(); }); }
-      if(n5){ n5.value = scenario.apgarNotes.five[k]||''; n5.addEventListener('input', ()=>{ scenario.apgarNotes.five[k]=n5.value; saveSafe(); }); }
-    });
     renderApgarPlayScores();
   }
 
@@ -2622,7 +2687,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         <div style="min-width:140px">${lab}</div>
         <div class="badge" id="apscore-${which}-${k}" style="min-width:36px;text-align:center">${scores[k]??0}</div>
       </div>
-      <textarea id="apnote-${which}-${k}" rows="2" placeholder="Notes for ${lab}"></textarea>
+      <div class="mini" id="apnote-${which}-${k}" style="margin-bottom:8px">—</div>
     `).join('');
     return `
       <div class="panel" style="border:1px solid var(--b);border-radius:12px;overflow:hidden">
@@ -2635,8 +2700,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   function renderApgarPlayScores(){
     ['one','five'].forEach(which=>{
       const s = scenario.apgar[which]||{};
+      const notes = scenario.apgarNotes?.[which] || {};
       APGAR_DOMAINS.forEach(([k])=>{
         const el = byId(`apscore-${which}-${k}`); if(el) el.textContent = String(s[k]??0);
+        const noteEl = byId(`apnote-${which}-${k}`);
+        if(noteEl){
+          const noteText = (notes[k] || '').trim();
+          noteEl.textContent = noteText ? noteText : '—';
+        }
       });
       const tot = byId(`aptotal-${which}`); if(tot) tot.textContent = `${apgarTotal(s)}/10`;
     });
