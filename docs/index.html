@@ -874,41 +874,52 @@ function applyEffectsPerSecond(){
     .filter(tx => activeTx[tx.id]?.on)
     .sort((a,b)=>(+b.priority||0)-(+a.priority||0));
 
-  // accumulate per-vital deltas
+  // first override per vital determines whether lower priorities are blocked
+  const lockByVital={};
+  for (const tx of activeList){
+    if (!tx.override) continue;
+    const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
+    for (const k of vitKeys){
+      if (lockByVital[k]) continue;
+      const d=+eff[k]||0;
+      if (d!==0 || cap[k]!=null || min[k]!=null) lockByVital[k]=tx;
+    }
+  }
+
+  // accumulate per-vital deltas while honoring override locks
   const delta = Object.fromEntries(vitKeys.map(k=>[k,0]));
   for (const tx of activeList){
     const eff = tx.eff || {};
     const st  = activeTx[tx.id];
     if (tx.mode==='oneShot' && st && !st.done){
-      for (const k of vitKeys){ const d=+eff[k]||0; if (d) delta[k]+=d*5; }
+      for (const k of vitKeys){
+        if (lockByVital[k] && lockByVital[k]!==tx) continue;
+        const d=+eff[k]||0; if (d) delta[k]+=d*5;
+      }
       st.done=true; st.on=false;
     } else if (tx.mode==='toggle'){
-      for (const k of vitKeys){ const d=+eff[k]||0; if (d) delta[k]+=d; }
+      for (const k of vitKeys){
+        if (lockByVital[k] && lockByVital[k]!==tx) continue;
+        const d=+eff[k]||0; if (d) delta[k]+=d;
+      }
     }
   }
   for (const k of vitKeys) vitals[k] += delta[k];
 
-  // hard per-vital override holder = first override seen (highest priority due to sort)
-  const ovrByVital={};
-  for (const tx of activeList){
-    if (!tx.override) continue;
-    for (const k of vitKeys){
-      if (ovrByVital[k]) continue;
-      if ((tx.min&&tx.min[k]!=null) || (tx.cap&&tx.cap[k]!=null)) ovrByVital[k]=tx;
-    }
-  }
+  // apply hard override caps/mins from the locking treatment, if any
   for (const k of vitKeys){
-    const t=ovrByVital[k]; if(!t) continue;
+    const t=lockByVital[k]; if(!t) continue;
     const mn=t.min?.[k]; const mx=t.cap?.[k];
     if (mn!=null && vitals[k]<mn) vitals[k]=mn;
     if (mx!=null && vitals[k]>mx) vitals[k]=mx;
   }
 
-  // merge soft caps and mins from all ON treatments
+  // merge soft caps and mins from remaining eligible treatments
   const up={}, down={}, floor={};
   for (const tx of activeList){
     const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
     for (const k of vitKeys){
+      if (lockByVital[k] && lockByVital[k]!==tx) continue;
       const d=+eff[k]||0;
       if (cap[k]!=null){
         if (d>0) up[k]   = up[k]==null   ? cap[k] : Math.min(up[k],cap[k]);

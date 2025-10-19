@@ -2492,26 +2492,43 @@ document.addEventListener('DOMContentLoaded', ()=>{ ensureVitalsDefaults(); wire
     nbVitals.cbg  = clamp((nbVitals.cbg??scenario.nbVitals.cbg),  0,600);
 
     const vitKeys=['hr','rr','spo2','sbp','dbp','cbg'];
-    const activeList = (scenario.nbTreatments||[]).filter(tx => nbActiveTx[tx.id]?.on).sort((a,b)=>(+b.priority||0)-(+a.priority||0));
+    const activeList = (scenario.nbTreatments||[])
+      .filter(tx => nbActiveTx[tx.id]?.on)
+      .sort((a,b)=>(+b.priority||0)-(+a.priority||0));
+
+    const lockByVital={};
+    for (const tx of activeList){
+      if (!tx.override) continue;
+      const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
+      for (const k of vitKeys){
+        if (lockByVital[k]) continue;
+        const d=+eff[k]||0;
+        if (d!==0 || cap[k]!=null || min[k]!=null) lockByVital[k]=tx;
+      }
+    }
+
     const delta = Object.fromEntries(vitKeys.map(k=>[k,0]));
     for (const tx of activeList){
       const eff = tx.eff || {};
       const st = nbActiveTx[tx.id];
-      if (tx.mode==='oneShot' && st && !st.done){ for (const k of vitKeys){ const d=+eff[k]||0; if (d) delta[k]+=d*5; } st.done=true; st.on=false; }
-      else if (tx.mode==='toggle'){ for (const k of vitKeys){ const d=+eff[k]||0; if (d) delta[k]+=d; } }
+      if (tx.mode==='oneShot' && st && !st.done){
+        for (const k of vitKeys){
+          if (lockByVital[k] && lockByVital[k]!==tx) continue;
+          const d=+eff[k]||0; if (d) delta[k]+=d*5;
+        }
+        st.done=true; st.on=false;
+      }
+      else if (tx.mode==='toggle'){
+        for (const k of vitKeys){
+          if (lockByVital[k] && lockByVital[k]!==tx) continue;
+          const d=+eff[k]||0; if (d) delta[k]+=d;
+        }
+      }
     }
     for (const k of vitKeys) nbVitals[k] += delta[k];
 
-    const ovrByVital={};
-    for (const tx of activeList){
-      if (!tx.override) continue;
-      for (const k of vitKeys){
-        if (ovrByVital[k]) continue;
-        if ((tx.min&&tx.min[k]!=null) || (tx.cap&&tx.cap[k]!=null)) ovrByVital[k]=tx;
-      }
-    }
     for (const k of vitKeys){
-      const t=ovrByVital[k]; if(!t) continue;
+      const t=lockByVital[k]; if(!t) continue;
       const mn=t.min?.[k]; const mx=t.cap?.[k];
       if (mn!=null && nbVitals[k]<mn) nbVitals[k]=mn;
       if (mx!=null && nbVitals[k]>mx) nbVitals[k]=mx;
@@ -2520,6 +2537,7 @@ document.addEventListener('DOMContentLoaded', ()=>{ ensureVitalsDefaults(); wire
     for (const tx of activeList){
       const eff=tx.eff||{}, cap=tx.cap||{}, min=tx.min||{};
       for (const k of vitKeys){
+        if (lockByVital[k] && lockByVital[k]!==tx) continue;
         const d=+eff[k]||0;
         if (cap[k]!=null){ if (d>0) up[k]=up[k]==null?cap[k]:Math.min(up[k],cap[k]); if (d<0) down[k]=down[k]==null?cap[k]:Math.max(down[k],cap[k]); }
         if (min[k]!=null){ floor[k]=floor[k]==null?min[k]:Math.max(floor[k],min[k]); }
