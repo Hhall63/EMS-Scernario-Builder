@@ -1791,8 +1791,26 @@ function resetRun(){
   injectAutoOff = [];
   lastActiveInjectKey = null;
   lastActiveInjectRef = null;
+
+  // reset audio playback state
+  const audioEl = byId('p-audio');
+  if (audioEl){
+    try{ audioEl.pause(); }catch{}
+    audioEl.currentTime = 0;
+    audioEl.loop = false;
+  }
+  currentAudioIdx = -1;
+  audioLoop = false;
+  const loopBtn = byId('p-audio-loop');
+  if (loopBtn){
+    loopBtn.textContent = 'Loop: Off';
+    loopBtn.classList.remove('success');
+  }
+
+  closeUrgent();
   buildTxButtons();
   renderAll();
+  if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
 }
 function start(){ if (running) return; running=true; interval=setInterval(tick,1000); }
 function pause(){ running=false; if(interval){ clearInterval(interval); interval=null; } }
