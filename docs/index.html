@@ -3673,9 +3673,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
     try{ localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario)); }catch{}
   }
 
+  const START_BEEP_FREQ = 1000;
+  const END_BEEP_FREQ = 650;
+
   function ensureBeepDefaults(){
     (scenario.injects||[]).forEach(inj=>{
       if (!inj.beepPattern) inj.beepPattern = '1long';
+      if (!inj.endBeepPattern) inj.endBeepPattern = inj.beepPattern || '1long';
     });
   }
 
@@ -3689,7 +3693,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }catch{}
   }
 
-  function playBeepPattern(pat){
+  function playBeepPattern(pat, freq = START_BEEP_FREQ){
     const seq = (()=>{
       if (pat==='1short') return [200];
       if (pat==='2short') return [200,150,200];
@@ -3701,7 +3705,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const isGap = i%2===1;
       if (isGap){ t += seq[i]; continue; }
       const dur = seq[i];
-      setTimeout(()=>toneOnce(1000, dur, 0.25), t);
+      setTimeout(()=>toneOnce(freq, dur, 0.25), t);
       t += dur;
       if (i<seq.length-1) t += (seq[i+1]||0);
     }
@@ -3719,7 +3723,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         const list = (window.appliedInjects||[]).slice().sort((a,b)=>Math.abs((+a.t||0)-now)-Math.abs((+b.t||0)-now));
         const cand = list[0];
         const pat = cand?.beepPattern || '1long';
-        playBeepPattern(pat);
+        playBeepPattern(pat, START_BEEP_FREQ);
       }catch{
         try{ orig && orig(f,m); }catch{}
       }
@@ -3740,8 +3744,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
       wrap.style.alignItems='center';
       wrap.style.gap='8px';
       wrap.innerHTML = `
-        <label title="Beep pattern when this inject starts/ends">
-          Beep
+        <label title="Beep pattern when this inject starts">
+          Start beep
           <select class="inj-beep">
             <option value="1short">One short</option>
             <option value="1long">One long</option>
@@ -3749,18 +3753,45 @@ document.addEventListener('DOMContentLoaded', ()=>{
             <option value="3short">Three short</option>
           </select>
         </label>
-        <button type="button" class="btn inj-beep-preview" title="Preview beep">Preview</button>
+        <button type="button" class="btn inj-beep-preview" title="Preview start beep">Preview start</button>
+        <label title="Beep pattern when this inject duration ends">
+          End beep
+          <select class="inj-end-beep">
+            <option value="1short">One short</option>
+            <option value="1long">One long</option>
+            <option value="2short">Two short</option>
+            <option value="3short">Three short</option>
+          </select>
+        </label>
+        <button type="button" class="btn inj-end-beep-preview" title="Preview end beep">Preview end</button>
       `;
       row.appendChild(wrap);
 
       const sel = row.querySelector('.inj-beep');
       const prev= row.querySelector('.inj-beep-preview');
+      const endSel = row.querySelector('.inj-end-beep');
+      const endPrev = row.querySelector('.inj-end-beep-preview');
       sel.value = inj.beepPattern || '1long';
+      endSel.value = inj.endBeepPattern || inj.beepPattern || '1long';
       sel.addEventListener('change', ()=>{
+        const prevStart = scenario.injects[idx].beepPattern || '1long';
+        const prevEnd = scenario.injects[idx].endBeepPattern || prevStart;
         scenario.injects[idx].beepPattern = sel.value;
+        if (prevEnd === prevStart){
+          scenario.injects[idx].endBeepPattern = sel.value;
+          endSel.value = sel.value;
+        }
         saveSafe();
       });
-      prev.addEventListener('click', ()=> playBeepPattern(scenario.injects[idx].beepPattern || '1long'));
+      prev.addEventListener('click', ()=> playBeepPattern(scenario.injects[idx].beepPattern || '1long', START_BEEP_FREQ));
+      endSel.addEventListener('change', ()=>{
+        scenario.injects[idx].endBeepPattern = endSel.value;
+        saveSafe();
+      });
+      endPrev.addEventListener('click', ()=>{
+        const pat = scenario.injects[idx].endBeepPattern || scenario.injects[idx].beepPattern || '1long';
+        playBeepPattern(pat, END_BEEP_FREQ);
+      });
     });
   }
 
@@ -3784,8 +3815,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
                     ( _lastActiveInj && cur && ((+_lastActiveInj.t|0) !== (+cur.t|0)) );
     if (changed){
       if (_lastActiveInj && (!_lastActiveInj.id || !_lastActiveInj || (_lastActiveInj.id !== cur?.id) || ((+_lastActiveInj.t|0) !== (+cur?.t|0)))){
-        const pat = _lastActiveInj.beepPattern || '1long';
-        playBeepPattern(pat);
+        const pat = _lastActiveInj.endBeepPattern || _lastActiveInj.beepPattern || '1long';
+        playBeepPattern(pat, END_BEEP_FREQ);
       }
       _lastActiveInj = cur || null;
     }
