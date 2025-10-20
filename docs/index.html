@@ -304,6 +304,42 @@ header .title{
 
   <div class="panel">
     <div class="content">
+      <div id="github-scenarios" class="kv" style="padding:12px; display:grid; gap:12px; margin-bottom:16px;">
+        <div class="row" style="align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+          <h3 style="margin:0;">GitHub Scenarios</h3>
+          <div id="gh-status" class="mini" data-gh-status></div>
+        </div>
+        <div class="grid">
+          <label>Owner / Org <input id="gh-owner" type="text" placeholder="e.g., county-ems"></label>
+          <label>Repository <input id="gh-repo" type="text" placeholder="scenario-library"></label>
+          <label>Branch <input id="gh-branch" type="text" value="main"></label>
+          <label>Folder (optional) <input id="gh-path" type="text" placeholder="scenarios/med"></label>
+        </div>
+        <div class="grid">
+          <label>Committer Name <input id="gh-committer-name" type="text" placeholder="EMS Scenario Builder"></label>
+          <label>Committer Email <input id="gh-committer-email" type="email" placeholder="ems-scenarios@example.com"></label>
+          <label>Token (classic or fine-grained) <input id="gh-token" type="password" autocomplete="off" placeholder="ghp_..."></label>
+          <label>Scenario file name <input id="gh-filename" type="text" placeholder="my-scenario.json"></label>
+        </div>
+        <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
+          <label style="min-width:240px; flex:1 1 260px;">
+            Remote scenarios
+            <select id="gh-scenario-select" data-gh-select>
+              <option value="">(none loaded)</option>
+            </select>
+          </label>
+          <button id="gh-refresh" class="btn">Refresh list</button>
+          <button id="gh-load" class="btn">Load selected</button>
+          <button id="gh-save" class="btn primary">Save to GitHub</button>
+        </div>
+        <div class="help">
+          Provide a personal access token with <code>repo</code> scope (fine-grained tokens need contents:read/write).
+          The folder is optional; leave blank to use the repository root. Enter a scenario file name (or leave it blank
+          to auto-slugify the title) and click <strong>Save to GitHub</strong> to create or update that file. Scenario
+          files are stored as JSON just like the local export. The token is stored in this browser only.
+        </div>
+      </div>
+
       <h3>Meta</h3>
       <div class="grid">
         <label>Title <input id="meta-title" type="text"></label>
@@ -410,42 +446,6 @@ header .title{
           <button id="apply-injects" class="btn primary">Apply to current run</button>
         </div>
       </details>
-    <div class="divider"></div>
-      <div id="github-scenarios" class="kv" style="padding:12px; display:grid; gap:12px; margin-bottom:16px;">
-        <div class="row" style="align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-          <h3 style="margin:0;">GitHub Scenarios</h3>
-          <div id="gh-status" class="mini" data-gh-status></div>
-        </div>
-        <div class="grid">
-          <label>Owner / Org <input id="gh-owner" type="text" placeholder="e.g., county-ems"></label>
-          <label>Repository <input id="gh-repo" type="text" placeholder="scenario-library"></label>
-          <label>Branch <input id="gh-branch" type="text" value="main"></label>
-          <label>Folder (optional) <input id="gh-path" type="text" placeholder="scenarios/med"></label>
-        </div>
-        <div class="grid">
-          <label>Committer Name <input id="gh-committer-name" type="text" placeholder="EMS Scenario Builder"></label>
-          <label>Committer Email <input id="gh-committer-email" type="email" placeholder="ems-scenarios@example.com"></label>
-          <label>Token (classic or fine-grained) <input id="gh-token" type="password" autocomplete="off" placeholder="ghp_..."></label>
-          <label>Scenario file name <input id="gh-filename" type="text" placeholder="my-scenario.json"></label>
-        </div>
-        <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
-          <label style="min-width:240px; flex:1 1 260px;">
-            Remote scenarios
-            <select id="gh-scenario-select" data-gh-select>
-              <option value="">(none loaded)</option>
-            </select>
-          </label>
-          <button id="gh-refresh" class="btn">Refresh list</button>
-          <button id="gh-load" class="btn">Load selected</button>
-          <button id="gh-save" class="btn primary">Save to GitHub</button>
-        </div>
-        <div class="help">
-          Provide a personal access token with <code>repo</code> scope (fine-grained tokens need contents:read/write).
-          The folder is optional; leave blank to use the repository root. Enter a scenario file name (or leave it blank
-          to auto-slugify the title) and click <strong>Save to GitHub</strong> to create or update that file. Scenario
-          files are stored as JSON just like the local export. The token is stored in this browser only.
-        </div>
-      </div>
       <div class="divider"></div>
       <h3>Vitals</h3>
       <div class="three">
@@ -1044,6 +1044,148 @@ function readFileAsDataURL(file){
 function getAudioSrc(a){
   // prefer runtime object URL, then normal url, then (legacy) data
   return (a && (a._objectUrl || a.url || a.data)) || '';
+}
+
+const AUDIO_LIBRARY_BASE = 'Sounds/';
+const AUDIO_LIBRARY_EXTS = ['.mp3','.wav','.ogg','.m4a','.aac','.flac','.webm'];
+let audioLibrary = [];
+let audioLibraryLoaded = false;
+
+function ensureLibraryPath(path){
+  if (!path) return '';
+  let clean = String(path).trim();
+  if (!clean) return '';
+  clean = clean.replace(/\\/g,'/');
+  // drop query/hash
+  clean = clean.split('#')[0];
+  clean = clean.split('?')[0];
+  // trim leading ./
+  clean = clean.replace(/^\.\//,'');
+  const base = AUDIO_LIBRARY_BASE.replace(/\/$/,'');
+  const baseLower = base.toLowerCase();
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(clean) && !clean.toLowerCase().includes(`${baseLower}/`)){
+    return '';
+  }
+  const lower = clean.toLowerCase();
+  if (lower === baseLower) return '';
+  const marker = `${baseLower}/`;
+  const idx = lower.lastIndexOf(marker);
+  if (idx !== -1){
+    clean = clean.slice(idx + marker.length);
+  }
+  clean = clean.replace(/^\/+/, '');
+  if (!clean) return '';
+  const parts = clean.split('/').filter(Boolean);
+  if (!parts.length) return '';
+  const joined = parts.join('/');
+  return `${AUDIO_LIBRARY_BASE}${joined}`;
+}
+
+function formatAudioDisplayName(audio){
+  if (!audio) return '';
+  if (audio.name) return audio.name;
+  const src = getAudioSrc(audio);
+  if (!src) return '';
+  if (src.startsWith('blob:')) return 'Uploaded audio';
+  const clean = src.split('?')[0].split('#')[0];
+  const parts = clean.split('/');
+  return decodeURIComponent(parts[parts.length-1] || clean);
+}
+
+function audioLibraryLabel(path){
+  if (!path) return '';
+  const trimmed = path.startsWith(AUDIO_LIBRARY_BASE)
+    ? path.slice(AUDIO_LIBRARY_BASE.length)
+    : path;
+  return decodeURIComponent(trimmed || path);
+}
+
+function normalizeLibrarySelection(audio){
+  if (!audio) return '';
+  const fromUrl = ensureLibraryPath(getAudioSrc(audio));
+  if (fromUrl && audioLibrary.includes(fromUrl)) return fromUrl;
+  const name = audio.name;
+  if (name){
+    const lowered = name.toLowerCase();
+    const match = audioLibrary.find(p=>p.toLowerCase().endsWith(`/${lowered}`));
+    if (match) return match;
+  }
+  return '';
+}
+
+function populateAudioLibraryOptions(selectEl, audio){
+  if (!selectEl) return;
+  selectEl.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  if (!audioLibraryLoaded){
+    placeholder.textContent = 'Loading library…';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    selectEl.appendChild(placeholder);
+    selectEl.disabled = true;
+    return;
+  }
+  if (!audioLibrary.length){
+    placeholder.textContent = 'No audio files found in Sounds/';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    selectEl.appendChild(placeholder);
+    selectEl.disabled = true;
+    return;
+  }
+  placeholder.textContent = 'Select from library…';
+  selectEl.appendChild(placeholder);
+  selectEl.disabled = false;
+  const current = normalizeLibrarySelection(audio);
+  audioLibrary.forEach(path=>{
+    const opt = document.createElement('option');
+    opt.value = path;
+    opt.textContent = audioLibraryLabel(path) || path;
+    if (path === current) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+  if (!current) selectEl.value = '';
+}
+
+async function loadAudioLibrary(){
+  const seen = new Set();
+  const addPath = (value)=>{
+    const normalized = ensureLibraryPath(value);
+    if (!normalized) return;
+    if (normalized.includes('..')) return;
+    if (!AUDIO_LIBRARY_EXTS.some(ext=>normalized.toLowerCase().endsWith(ext))) return;
+    seen.add(normalized);
+  };
+
+  // Try manifest first
+  try{
+    const res = await fetch(`${AUDIO_LIBRARY_BASE}manifest.json`, { cache:'no-store' });
+    if (res.ok){
+      const data = await res.json();
+      const entries = Array.isArray(data?.files) ? data.files : Array.isArray(data) ? data : [];
+      entries.forEach(addPath);
+    }
+  }catch(err){
+    console.warn('Audio manifest load failed:', err);
+  }
+
+  if (!seen.size){
+    try{
+      const res = await fetch(AUDIO_LIBRARY_BASE, { cache:'no-store' });
+      if (res.ok){
+        const text = await res.text();
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        Array.from(doc.querySelectorAll('a')).forEach(a=> addPath(a.getAttribute('href') || ''));
+      }
+    }catch(err){
+      console.warn('Audio directory listing failed:', err);
+    }
+  }
+
+  audioLibrary = Array.from(seen).sort((a,b)=>a.localeCompare(b, undefined, { sensitivity:'base' }));
+  audioLibraryLoaded = true;
+  try{ drawAudioEditor(); }catch{}
 }
 
 /* ---------------- Scenario model ---------------- */
@@ -1877,14 +2019,20 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const row = document.createElement('div');
     row.className = 'audio-row kv';
     row.dataset.id = a.id || `aud${i+1}`;
+    if (!a.id) a.id = row.dataset.id;
+    const displayName = formatAudioDisplayName(a) || 'No file chosen';
     row.innerHTML = `
-      <div class="row hdr" style="gap:10px;align-items:center">
-        <label style="flex:2">Label
+      <div class="row hdr" style="gap:10px;align-items:center;flex-wrap:wrap">
+        <label style="flex:2;min-width:180px">Label
           <input class="a-label" type="text" value="${a.label||`Audio ${i+1}`}" placeholder="Button label">
         </label>
 
-        <button type="button" class="btn pick">Choose file…</button>
-        <span class="audio-name">${a.name ? a.name : 'No file chosen'}</span>
+        <label style="flex:1;min-width:200px">Library
+          <select class="a-library"></select>
+        </label>
+
+        <button type="button" class="btn pick">Upload file…</button>
+        <span class="audio-name">${displayName}</span>
         <input class="a-file" type="file" accept="audio/*" style="display:none">
 
         <label style="flex:0" title="Background color when OFF">
@@ -1909,9 +2057,12 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const pickBtn = row.querySelector('.pick');
     const fileEl  = row.querySelector('.a-file');
     const nameEl  = row.querySelector('.audio-name');
+    const libEl   = row.querySelector('.a-library');
     const bgEl    = row.querySelector('.a-bg');
     const bgOnEl  = row.querySelector('.a-bg-on');
     const flashEl = row.querySelector('.a-flash-on');
+
+    populateAudioLibraryOptions(libEl, a);
 
     // Update label live
     labelEl.addEventListener('input', ()=>{
@@ -1922,27 +2073,60 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     // File picker
     pickBtn.addEventListener('click', ()=> fileEl.click());
     fileEl.addEventListener('change', async ()=>{
-  const f=fileEl.files?.[0]; if(!f) return;
-  nameEl.textContent = f.name;
+      const f = fileEl.files?.[0]; if (!f) return;
+      const existing = (scenario.audios||[])[i] || {};
+      if (existing._objectUrl && existing._objectUrl.startsWith('blob:')){
+        try{ URL.revokeObjectURL(existing._objectUrl); }catch{}
+      }
+      nameEl.textContent = f.name;
+      if (libEl) libEl.value = '';
 
-  // Create a temporary object URL for playback (do NOT store full file in localStorage)
-  const objURL = URL.createObjectURL(f);
+      // Create a temporary object URL for playback (do NOT store full file in localStorage)
+      const objURL = URL.createObjectURL(f);
 
-  (scenario.audios||[])[i] = {
-    ...(scenario.audios?.[i]||{}),
-    id: row.dataset.id || `aud${i+1}`,
-    label: labelEl.value?.trim() || f.name || `Audio ${i+1}`,
-    url: objURL,         // use the object URL at runtime
-    _objectUrl: objURL,  // mark as volatile (don’t persist)
-    name: f.name,
-    bg: (scenario.audios?.[i]?.bg)||'#fafafa',
-    bgOn: (scenario.audios?.[i]?.bgOn)||'#c7f7c7',
-    flashOn: !!(scenario.audios?.[i]?.flashOn)
-    // no .data here on purpose
-  };
+      (scenario.audios||[])[i] = {
+        ...existing,
+        id: row.dataset.id || `aud${i+1}`,
+        label: labelEl.value?.trim() || f.name || `Audio ${i+1}`,
+        url: objURL,         // use the object URL at runtime
+        _objectUrl: objURL,  // mark as volatile (don’t persist)
+        name: f.name,
+        bg: (scenario.audios?.[i]?.bg)||'#fafafa',
+        bgOn: (scenario.audios?.[i]?.bgOn)||'#c7f7c7',
+        flashOn: !!(scenario.audios?.[i]?.flashOn)
+        // no .data here on purpose
+      };
 
-  save();
-});
+      save();
+    });
+
+    if (libEl){
+      libEl.addEventListener('change', ()=>{
+        const choice = libEl.value;
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        if (choice){
+          if (rec._objectUrl && rec._objectUrl.startsWith('blob:')){
+            try{ URL.revokeObjectURL(rec._objectUrl); }catch{}
+          }
+          delete rec._objectUrl;
+          delete rec.data;
+          rec.url = choice;
+          rec.name = audioLibraryLabel(choice) || '';
+          nameEl.textContent = rec.name || 'No file chosen';
+        } else {
+          if (rec._objectUrl && rec._objectUrl.startsWith('blob:')){
+            try{ URL.revokeObjectURL(rec._objectUrl); }catch{}
+          }
+          delete rec._objectUrl;
+          delete rec.data;
+          rec.url = '';
+          rec.name = '';
+          nameEl.textContent = 'No file chosen';
+        }
+        save();
+      });
+    }
 
     // Colors + flash
     bgEl.addEventListener('change', ()=>{
@@ -1960,9 +2144,15 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
 
     // Delete row
     row.querySelector('.del').addEventListener('click', ()=>{
+      const rec = (scenario.audios||[])[i];
+      if (rec && rec._objectUrl && rec._objectUrl.startsWith('blob:')){
+        try{ URL.revokeObjectURL(rec._objectUrl); }catch{}
+      }
       (scenario.audios||[]).splice(i,1);
       if (currentAudioIdx === i) currentAudioIdx = -1;
+      else if (currentAudioIdx > i) currentAudioIdx -= 1;
       save();
+      drawAudioEditor();
     });
 
     host.appendChild(row);
@@ -2396,13 +2586,18 @@ safeOn(byId('urgent-backdrop'),'click',closeUrgent);
 // BUILD: add-audio button
 safeOn(byId('add-audio'),'click',()=>{
   scenario.audios = scenario.audios || [];
+  const nextIndex = scenario.audios.length + 1;
   scenario.audios.push({
     id:`aud${Date.now()}`,
-    label:`Audio ${scenario.audios.length+1}`,
-    data:null,   // will be filled when a file is chosen
-    name:''      // nice to show file name in the UI
+    label:`Audio ${nextIndex}`,
+    url:'',
+    name:'',
+    bg:'#fafafa',
+    bgOn:'#c7f7c7',
+    flashOn:false
   });
   save();
+  drawAudioEditor();
 });
 
 
@@ -2554,6 +2749,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   setGitHubStatus('Enter GitHub owner, repository, and branch to manage remote scenarios.');
   wire();
   load();
+  loadAudioLibrary().catch(err=>console.warn('Audio library init failed:', err));
   const cfg = getGitHubConfig();
   if (cfg.owner && cfg.repo){
     refreshGitHubScenarios();
