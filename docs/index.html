@@ -1105,7 +1105,19 @@ function readFileAsDataURL(file){
 
 function getAudioSrc(a){
   // prefer runtime object URL, then normal url, then (legacy) data
-  return (a && (a._objectUrl || a.url || a.data)) || '';
+  const raw = (a && (a._objectUrl || a.url || a.data)) || '';
+  if (!raw) return '';
+  const trimmed = String(raw).trim();
+  if (!trimmed) return '';
+  if (/^(?:blob:|data:|https?:|file:|\/\/|\/)/i.test(trimmed)){
+    return trimmed;
+  }
+  const normalized = ensureLibraryPath(trimmed);
+  if (normalized){
+    return normalized;
+  }
+  const base = getAudioLibraryBase();
+  return `${base}${trimmed.replace(/^\/+/, '')}`;
 }
 
 function sanitizeAudioBase(base){
