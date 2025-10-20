@@ -1695,7 +1695,7 @@ function scheduleTriggersOnce(inj, now){
     return;
   }
 
-  // 2) fallback: next inject by editor order, starts immediately
+  // 2) fallback: next inject by editor order, preserve original gap
   const order = (scenario.injects||[]).map(j=>j.id);
   const i = order.indexOf(inj.id);
   if (i>=0 && i<order.length-1){
@@ -1703,7 +1703,11 @@ function scheduleTriggersOnce(inj, now){
     if (nextBase){
       ensureInjectBeepDefaultsFor(nextBase);
       appliedInjects = appliedInjects.filter(x => !(x.id===nextBase.id && x.t>now));
-      appliedInjects.push({...nextBase, t: now}); // countdown starts now
+      const nextGap = Math.max(0, ((+nextBase.t)||0) - ((+inj.t)||0));
+      appliedInjects.push({
+        ...nextBase,
+        t: now + nextGap
+      });
       appliedInjects.sort((a,b)=>a.t-b.t);        // <-- and add here
     }
   }
