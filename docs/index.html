@@ -132,6 +132,11 @@ button.muted{opacity:.6;cursor:not-allowed}
   .pill{padding:3px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;border:1px solid var(--b)}
   .stack{display:flex;flex-wrap:wrap;gap:6px}
   .mini{font-size:11px;color:var(--muted)}
+  .mini.status-info{color:var(--muted)}
+  .mini.status-success{color:var(--green)}
+  .mini.status-error{color:var(--red)}
+  .mini.status-warning{color:var(--amber)}
+  button.btn[disabled]{opacity:.5;cursor:not-allowed}
   .help{font-size:12px;color:#374151}
   .error{color:#b91c1c;font-size:12px}
   /* Lung sounds header row + buttons */
@@ -406,38 +411,41 @@ header .title{
         </div>
       </details>
     <div class="divider"></div>
-    <h3>GitHub Scenarios</h3>
-    <div id="preset-load" class="kv" style="padding:12px; display:grid; gap:12px;">
-      <div class="grid">
-        <label>Owner / Org <input id="gh-owner" type="text" placeholder="e.g., county-ems"></label>
-        <label>Repository <input id="gh-repo" type="text" placeholder="scenario-library"></label>
-        <label>Branch <input id="gh-branch" type="text" value="main"></label>
-        <label>Folder (optional) <input id="gh-path" type="text" placeholder="scenarios/med"></label>
+      <div id="github-scenarios" class="kv" style="padding:12px; display:grid; gap:12px; margin-bottom:16px;">
+        <div class="row" style="align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+          <h3 style="margin:0;">GitHub Scenarios</h3>
+          <div id="gh-status" class="mini" data-gh-status></div>
+        </div>
+        <div class="grid">
+          <label>Owner / Org <input id="gh-owner" type="text" placeholder="e.g., county-ems"></label>
+          <label>Repository <input id="gh-repo" type="text" placeholder="scenario-library"></label>
+          <label>Branch <input id="gh-branch" type="text" value="main"></label>
+          <label>Folder (optional) <input id="gh-path" type="text" placeholder="scenarios/med"></label>
+        </div>
+        <div class="grid">
+          <label>Committer Name <input id="gh-committer-name" type="text" placeholder="EMS Scenario Builder"></label>
+          <label>Committer Email <input id="gh-committer-email" type="email" placeholder="ems-scenarios@example.com"></label>
+          <label>Token (classic or fine-grained) <input id="gh-token" type="password" autocomplete="off" placeholder="ghp_..."></label>
+          <label>Scenario file name <input id="gh-filename" type="text" placeholder="my-scenario.json"></label>
+        </div>
+        <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
+          <label style="min-width:240px; flex:1 1 260px;">
+            Remote scenarios
+            <select id="gh-scenario-select" data-gh-select>
+              <option value="">(none loaded)</option>
+            </select>
+          </label>
+          <button id="gh-refresh" class="btn">Refresh list</button>
+          <button id="gh-load" class="btn">Load selected</button>
+          <button id="gh-save" class="btn primary">Save to GitHub</button>
+        </div>
+        <div class="help">
+          Provide a personal access token with <code>repo</code> scope (fine-grained tokens need contents:read/write).
+          The folder is optional; leave blank to use the repository root. Enter a scenario file name (or leave it blank
+          to auto-slugify the title) and click <strong>Save to GitHub</strong> to create or update that file. Scenario
+          files are stored as JSON just like the local export. The token is stored in this browser only.
+        </div>
       </div>
-      <div class="grid">
-        <label>Committer Name <input id="gh-committer-name" type="text" placeholder="EMS Scenario Builder"></label>
-        <label>Committer Email <input id="gh-committer-email" type="email" placeholder="ems-scenarios@example.com"></label>
-        <label>Token (classic or fine-grained) <input id="gh-token" type="password" autocomplete="off" placeholder="ghp_..."></label>
-        <label>Scenario file name <input id="gh-filename" type="text" placeholder="my-scenario.json"></label>
-      </div>
-      <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
-        <label style="min-width:240px; flex:1 1 260px;">
-          Remote scenarios
-          <select id="gh-scenario-select" data-gh-select>
-            <option value="">(none loaded)</option>
-          </select>
-        </label>
-        <button id="gh-refresh" class="btn">Refresh list</button>
-        <button id="gh-load" class="btn">Load selected</button>
-        <button id="gh-save" class="btn primary">Save to GitHub</button>
-      </div>
-      <div id="gh-status" class="mini" data-gh-status></div>
-      <div class="help">
-        Provide a personal access token with <code>repo</code> scope (fine-grained tokens need contents:read/write).
-        The folder is optional; leave blank to use the repository root. Scenario files are stored as JSON just like
-        the local export. The token is stored in this browser only.
-      </div>
-    </div>
       <div class="divider"></div>
       <h3>Vitals</h3>
       <div class="three">
@@ -550,19 +558,6 @@ header .title{
   </div>
 </div>
     <div class="content">
-      <div class="kv" style="margin-bottom:16px;">
-        <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
-          <label style="min-width:220px; flex:1 1 220px;">
-            Remote scenarios
-            <select id="p-gh-scenario-select" data-gh-select>
-              <option value="">(none loaded)</option>
-            </select>
-          </label>
-          <button id="p-gh-refresh" class="btn">Refresh list</button>
-          <button id="p-gh-load" class="btn">Load selected</button>
-        </div>
-        <div class="mini" data-gh-status></div>
-      </div>
       <div id="play-text-section" class="grid">
         <div>
           <h3>Dispatch</h3>
@@ -640,10 +635,32 @@ function setScenarioSelectValue(value){
 }
 
 function setGitHubStatus(message, mode='info'){
+  const modes=['info','success','error','warning'];
   document.querySelectorAll('[data-gh-status]').forEach(el => {
     el.textContent = message || '';
+    modes.forEach(name=>{
+      el.classList.toggle(`status-${name}`, mode === name);
+    });
     el.classList.toggle('error', mode === 'error');
   });
+}
+
+function setGitHubBusy(isBusy, opts={}){
+  const options = { save:true, load:true, refresh:true, select:true, ...opts };
+  const toggle=(id, disabled)=>{
+    const el = byId(id);
+    if (el){
+      el.disabled = !!disabled;
+    }
+  };
+  if (options.save) toggle('gh-save', isBusy);
+  if (options.load) toggle('gh-load', isBusy);
+  if (options.refresh) toggle('gh-refresh', isBusy);
+  if (options.select){
+    scenarioSelects().forEach(sel => {
+      sel.disabled = !!isBusy;
+    });
+  }
 }
 
 function renderPresetButtons(){
@@ -730,18 +747,22 @@ function rememberSelection(path, file){
   persistGitHubConfig({ ...current, lastSelected: path || '', lastFile: file || '' });
 }
 
-function validateGitHubConfig(config){
+function validateGitHubConfig(config, opts={}){
+  const options = { requireToken:true, ...opts };
   const missing = [];
-  if (!config.owner) missing.push('owner');
-  if (!config.repo) missing.push('repo');
+  if (!config.owner) missing.push('owner/org');
+  if (!config.repo) missing.push('repository');
   if (!config.branch) missing.push('branch');
   if (missing.length){
     return { valid:false, message:`Provide a GitHub ${missing.join(', ')}.` };
   }
-  if (!config.token){
-    return { valid:false, message:'A GitHub token is required to read/write scenarios.' };
+  if (options.requireToken && !config.token){
+    return { valid:false, message:'Add a GitHub token before saving scenarios.' };
   }
-  return { valid:true };
+  const warning = !options.requireToken && !config.token
+    ? 'Using unauthenticated requests. Private repositories require a token and rate limits will be lower.'
+    : '';
+  return { valid:true, warning };
 }
 
 function encodeScenarioContent(json){
@@ -783,26 +804,36 @@ async function refreshGitHubScenarios(){
   const config = getGitHubConfig();
   const file = byId('gh-filename')?.value?.trim() || '';
   persistGitHubConfig({ ...config, lastSelected: githubState.lastSelected || '', lastFile: file });
-  const check = validateGitHubConfig(config);
+  const check = validateGitHubConfig(config, { requireToken:false });
   if (!check.valid){
     setGitHubStatus(check.message, 'error');
     githubState.items = [];
     renderPresetButtons();
     return;
   }
+  const statusMode = check.warning ? 'warning' : 'info';
   const owner = encodeURIComponent(config.owner);
   const repo = encodeURIComponent(config.repo);
   const dirPath = buildGitHubFilePath(config, '');
   const qs = new URLSearchParams({ ref: config.branch });
   const pathSegment = dirPath ? `contents/${dirPath}` : 'contents';
   const url = `https://api.github.com/repos/${owner}/${repo}/${pathSegment}?${qs.toString()}`;
-  setGitHubStatus('Loading scenarios from GitHub…');
+  setGitHubBusy(true);
+  if (check.warning){
+    setGitHubStatus(`${check.warning} Loading scenarios from GitHub…`, 'warning');
+  }else{
+    setGitHubStatus('Loading scenarios from GitHub…', 'info');
+  }
   try{
     const res = await fetch(url, { headers: githubHeaders(config.token) });
+    if (res.status === 401 || res.status === 403){
+      throw new Error('GitHub rejected the request. If this is a private repository, add a token with contents access.');
+    }
     if (res.status === 404){
       githubState.items = [];
       renderPresetButtons();
-      setGitHubStatus('Folder not found on GitHub. It will be created on first save.', 'error');
+      const message = 'No folder found at that path yet. Enter a file name and click Save to GitHub to create it.';
+      setGitHubStatus(check.warning ? `${message} ${check.warning}` : message, statusMode);
       return;
     }
     if (!res.ok){
@@ -823,13 +854,18 @@ async function refreshGitHubScenarios(){
     githubState.items = items;
     renderPresetButtons();
     if (!items.length){
-      setGitHubStatus('No JSON scenario files found in that folder yet.');
+      const base = 'No JSON scenario files found yet. Enter a file name and click Save to GitHub to create one.';
+      setGitHubStatus(check.warning ? `${base} ${check.warning}` : base, statusMode);
     }else{
-      setGitHubStatus(`Loaded ${items.length} scenario${items.length===1?'':'s'} from GitHub.`);
+      const base = `Loaded ${items.length} scenario${items.length===1?'':'s'} from GitHub.`;
+      const mode = check.warning ? 'warning' : 'success';
+      setGitHubStatus(check.warning ? `${base} ${check.warning}` : `${base} Select a scenario or enter a new file name to create another.`, mode);
     }
   }catch(err){
     console.error(err);
     setGitHubStatus(err.message || 'Unable to load GitHub scenarios.', 'error');
+  }finally{
+    setGitHubBusy(false);
   }
 }
 
@@ -864,22 +900,23 @@ async function saveScenarioToGitHub(){
   const baseUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`;
   const qs = new URLSearchParams({ ref: config.branch });
   let sha;
+  setGitHubBusy(true);
   try{
-    const checkRes = await fetch(`${baseUrl}?${qs.toString()}`, { headers: githubHeaders(config.token) });
-    if (checkRes.ok){
-      const existing = await checkRes.json();
-      sha = existing.sha;
-    }else if (checkRes.status !== 404){
-      const text = await checkRes.text();
-      throw new Error(`GitHub lookup failed: ${checkRes.status} ${checkRes.statusText} ${text}`);
+    try{
+      const checkRes = await fetch(`${baseUrl}?${qs.toString()}`, { headers: githubHeaders(config.token) });
+      if (checkRes.ok){
+        const existing = await checkRes.json();
+        sha = existing.sha;
+      }else if (checkRes.status === 401 || checkRes.status === 403){
+        throw new Error('GitHub rejected the request. Ensure your token has contents access for this repository.');
+      }else if (checkRes.status !== 404){
+        const text = await checkRes.text();
+        throw new Error(`GitHub lookup failed: ${checkRes.status} ${checkRes.statusText} ${text}`);
+      }
+    }catch(err){
+      throw new Error(err.message || 'Unable to check existing file on GitHub.');
     }
-  }catch(err){
-    console.error(err);
-    setGitHubStatus(err.message || 'Unable to check existing file on GitHub.', 'error');
-    return;
-  }
-  setGitHubStatus('Saving scenario to GitHub…');
-  try{
+    setGitHubStatus('Saving scenario to GitHub…', 'info');
     save();
     const json = JSON.stringify(scenarioForStorage());
     const body = {
@@ -905,18 +942,21 @@ async function saveScenarioToGitHub(){
     const fullPath = (config.directory ? `${config.directory.replace(/\/+$/,'')}/` : '') + filename;
     githubState.lastSelected = fullPath;
     rememberSelection(fullPath, filename);
-    setGitHubStatus('Scenario saved. Refreshing list…');
+    setGitHubStatus('Scenario saved. Refreshing list…', 'info');
     await refreshGitHubScenarios();
     setScenarioSelectValue(githubState.lastSelected);
+    setGitHubStatus(`Scenario saved to GitHub as ${fullPath}.`, 'success');
   }catch(err){
     console.error(err);
     setGitHubStatus(err.message || 'Unable to save scenario to GitHub.', 'error');
+  }finally{
+    setGitHubBusy(false);
   }
 }
 
 async function loadScenarioFromGitHub(){
   const config = getGitHubConfig();
-  const check = validateGitHubConfig(config);
+  const check = validateGitHubConfig(config, { requireToken:false });
   if (!check.valid){
     setGitHubStatus(check.message, 'error');
     return;
@@ -932,9 +972,17 @@ async function loadScenarioFromGitHub(){
   const repo = encodeURIComponent(config.repo);
   const encodedPath = encodeGitHubPath(path);
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${encodeURIComponent(config.branch)}`;
-  setGitHubStatus('Loading scenario from GitHub…');
+  setGitHubBusy(true, { save:false });
+  if (check.warning){
+    setGitHubStatus(`${check.warning} Loading scenario from GitHub…`, 'warning');
+  }else{
+    setGitHubStatus('Loading scenario from GitHub…', 'info');
+  }
   try{
     const res = await fetch(url, { headers: githubHeaders(config.token) });
+    if (res.status === 401 || res.status === 403){
+      throw new Error('GitHub rejected the request. Add a token with contents access for private repositories.');
+    }
     if (!res.ok){
       const text = await res.text();
       throw new Error(`GitHub load failed: ${res.status} ${res.statusText} ${text}`);
@@ -953,10 +1001,13 @@ async function loadScenarioFromGitHub(){
     githubState.lastSelected = path;
     rememberSelection(path, byId('gh-filename')?.value?.trim() || '');
     setScenarioSelectValue(path);
-    setGitHubStatus(`Loaded scenario from GitHub: ${path}`);
+    const base = `Loaded scenario from GitHub: ${path}`;
+    setGitHubStatus(check.warning ? `${base}. ${check.warning}` : base, 'success');
   }catch(err){
     console.error(err);
     setGitHubStatus(err.message || 'Unable to load scenario from GitHub.', 'error');
+  }finally{
+    setGitHubBusy(false);
   }
 }
 
@@ -2400,8 +2451,6 @@ safeOn(byId('add-audio'),'click',()=>{
     safeOn(byId('gh-refresh'),'click',refreshGitHubScenarios);
     safeOn(byId('gh-save'),'click',saveScenarioToGitHub);
     safeOn(byId('gh-load'),'click',loadScenarioFromGitHub);
-    safeOn(byId('p-gh-refresh'),'click',refreshGitHubScenarios);
-    safeOn(byId('p-gh-load'),'click',loadScenarioFromGitHub);
     const onScenarioSelectChange = (e)=>{
       const value = e.target.value || '';
       githubState.lastSelected = value;
@@ -2502,10 +2551,11 @@ function hydrateBuilderInputs(){
 document.addEventListener('DOMContentLoaded', ()=>{
   ensureScenarioDefaults();
   hydrateGitHubConfig();
+  setGitHubStatus('Enter GitHub owner, repository, and branch to manage remote scenarios.');
   wire();
   load();
   const cfg = getGitHubConfig();
-  if (cfg.owner && cfg.repo && cfg.token){
+  if (cfg.owner && cfg.repo){
     refreshGitHubScenarios();
   }
 });
