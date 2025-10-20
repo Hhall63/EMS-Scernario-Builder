@@ -1114,10 +1114,10 @@ function getAudioSrc(a){
   }
   const normalized = ensureLibraryPath(trimmed);
   if (normalized){
-    const base = getAudioLibraryBase();
-    return base + normalized.replace(/^\/+/, '');
+    return normalized;
   }
-  return trimmed;
+  const base = getAudioLibraryBase();
+  return `${base}${trimmed.replace(/^\/+/, '')}`;
 }
 
 function sanitizeAudioBase(base){
