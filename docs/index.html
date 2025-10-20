@@ -107,7 +107,18 @@ button.muted{opacity:.6;cursor:not-allowed}
   .muted{color:var(--muted);font-size:12px}
   .divider{height:1px;background:var(--bb);margin:10px 0}
   .log{height:120px;overflow:auto;background:#0b1020;color:#c7d2fe;border-radius:10px;padding:10px;font-family:ui-monospace,monospace}
-  .stickybar{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bb);padding:8px 10px;z-index:5}
+  .stickybar{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--bb);padding:12px 16px;z-index:5}
+  .stickybar.build-header{display:grid;grid-template-columns:minmax(220px,1fr) auto minmax(240px,1fr);align-items:center;gap:16px}
+  .build-header__note{display:flex;flex-direction:column;gap:4px}
+  .build-header__controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .build-header__timers{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:flex-end}
+  .build-header__timers .timer-wrap{min-width:140px}
+  .build-header__timers .eta-input{min-width:160px}
+  @media (max-width:960px){
+    .stickybar.build-header{grid-template-columns:1fr;gap:12px}
+    .build-header__controls{justify-content:flex-start}
+    .build-header__timers{justify-content:flex-start;gap:12px}
+  }
   /* timers with captions + wider spacing */
   .timer-wrap{display:flex;flex-direction:column;align-items:center;min-width:160px}
   .eta-wrap{gap:6px}
@@ -317,20 +328,25 @@ header .title{
 <!-- BUILD -->
 <div class="wrap" id="build">
   <div class="panel">
-    <div class="stickybar row">
-  <span class="note-start">Click start when student enters scenario room and sees the patient</span>
-  <button id="start" class="btn success" style="font-size:15px">Start</button>
-  <button id="pause" class="btn" style="font-size:15px">Pause</button>
-  <button id="reset" class="btn danger" style="font-size:15px">Reset</button>
-
-  <div class="timer-wrap">
-    <div id="timer" class="big-timer">15:00</div>
-    <div class="timer-caption">Scenario Time Remaining / ALS ETA</div>
-  </div>
-  <label class="eta-input">Hospital ETA
-    <input id="txt-hospital-eta" type="text" placeholder="e.g. 12 min or 08:00">
-  </label>
-</div>
+    <div class="stickybar build-header">
+      <div class="build-header__note">
+        <span class="note-start">Click start when student enters scenario room and sees the patient</span>
+      </div>
+      <div class="build-header__controls">
+        <button id="start" class="btn success" style="font-size:15px">Start</button>
+        <button id="pause" class="btn" style="font-size:15px">Pause</button>
+        <button id="reset" class="btn danger" style="font-size:15px">Reset</button>
+      </div>
+      <div class="build-header__timers">
+        <div class="timer-wrap">
+          <div id="timer" class="big-timer">15:00</div>
+          <div class="timer-caption">Scenario Time Remaining / ALS ETA</div>
+        </div>
+        <label class="eta-input">Hospital ETA
+          <input id="txt-hospital-eta" type="text" placeholder="e.g. 12 min or 08:00">
+        </label>
+      </div>
+    </div>
     <div class="content">
       <!-- Removed the left-side build Monitor preview as requested -->
 
@@ -1564,6 +1580,63 @@ let vitals={}, baseline={}, activeTx={}, decayTx={};
 let appliedInjects=[], firedInject=new Set();
 let triggeredOnce = new Set(); // remembers which injects already scheduled their triggers
 let injectAutoOff = []; // [{txId, endT, injKey}]
+const DEFAULT_BEEP_PATTERN = '1short';
+const START_BEEP_FREQ = 1000;
+const END_BEEP_FREQ = 650;
+let lastActiveInjectKey = null;
+let lastActiveInjectRef = null;
+
+function ensureInjectBeepDefaultsFor(inj){
+  if (!inj) return inj;
+  if (!inj.beepPattern) inj.beepPattern = DEFAULT_BEEP_PATTERN;
+  if (!inj.endBeepPattern) inj.endBeepPattern = inj.beepPattern || DEFAULT_BEEP_PATTERN;
+  return inj;
+}
+function ensureInjectListDefaults(list){
+  if (!Array.isArray(list)) return [];
+  list.forEach(ensureInjectBeepDefaultsFor);
+  return list;
+}
+
+function toneOnce(freq=1000, ms=200, vol=0.25){
+  try{
+    const C=new (window.AudioContext||window.webkitAudioContext)();
+    const o=C.createOscillator(), g=C.createGain();
+    o.connect(g); g.connect(C.destination);
+    o.type="square"; o.frequency.value=freq; g.gain.value=vol;
+    o.start();
+    setTimeout(()=>{ try{o.stop();}catch{} try{C.close();}catch{} }, ms);
+  }catch{}
+}
+
+function playBeepPattern(pattern, freq = START_BEEP_FREQ){
+  const seq = (()=>{
+    if (pattern === '1short') return [200];
+    if (pattern === '2short') return [200,150,200];
+    if (pattern === '3short') return [200,150,200,150,200];
+    return [700];
+  })();
+  let t = 0;
+  for (let i = 0; i < seq.length; i++){
+    const isGap = i % 2 === 1;
+    if (isGap){ t += seq[i]; continue; }
+    const dur = seq[i];
+    setTimeout(()=>toneOnce(freq, dur, 0.25), t);
+    t += dur;
+    if (i < seq.length - 1) t += (seq[i+1] || 0);
+  }
+}
+
+function playInjectStartBeep(inj){
+  const pat = ensureInjectBeepDefaultsFor(inj)?.beepPattern || DEFAULT_BEEP_PATTERN;
+  playBeepPattern(pat, START_BEEP_FREQ);
+}
+
+function playInjectEndBeep(inj){
+  const pat = ensureInjectBeepDefaultsFor(inj)?.endBeepPattern || DEFAULT_BEEP_PATTERN;
+  playBeepPattern(pat, END_BEEP_FREQ);
+}
+
 // Loud single beep used at inject fire
 function blast(f=1000,m=700){
   try{
@@ -1612,6 +1685,7 @@ function scheduleTriggersOnce(inj, now){
     inj.triggers.forEach(tr=>{
       const base=(scenario.injects||[]).find(x=>x.id===tr.id);
       if (base){
+        ensureInjectBeepDefaultsFor(base);
         // remove future duplicates of the same id so chain takes over
         appliedInjects = appliedInjects.filter(x => !(x.id===base.id && x.t>now));
         appliedInjects.push({...base, t: now + (+tr.delay||0)});
@@ -1627,6 +1701,7 @@ function scheduleTriggersOnce(inj, now){
   if (i>=0 && i<order.length-1){
     const nextBase = (scenario.injects||[])[i+1];
     if (nextBase){
+      ensureInjectBeepDefaultsFor(nextBase);
       appliedInjects = appliedInjects.filter(x => !(x.id===nextBase.id && x.t>now));
       appliedInjects.push({...nextBase, t: now}); // countdown starts now
       appliedInjects.sort((a,b)=>a.t-b.t);        // <-- and add here
@@ -1675,12 +1750,15 @@ function startNextInject(fromId){
   const i = order.indexOf(fromId);
   if (i >= 0 && i < order.length - 1){
     const nextBase = (scenario.injects||[])[i+1];
-    // remove future duplicates of the same id so manual chain takes over
-    appliedInjects = appliedInjects.filter(x => !(x.id === nextBase.id && x.t > elapsed));
-    appliedInjects.push({...nextBase, t: elapsed}); // start countdown now
-    appliedInjects.sort((a,b)=>a.t-b.t);
-    renderInjects();
-    log(`Manually started next inject: ${nextBase.name||nextBase.id}`);
+    if (nextBase){
+      ensureInjectBeepDefaultsFor(nextBase);
+      // remove future duplicates of the same id so manual chain takes over
+      appliedInjects = appliedInjects.filter(x => !(x.id === nextBase.id && x.t > elapsed));
+      appliedInjects.push({...nextBase, t: elapsed}); // start countdown now
+      appliedInjects.sort((a,b)=>a.t-b.t);
+      renderInjects();
+      log(`Manually started next inject: ${nextBase.name||nextBase.id}`);
+    }
   }
 }
 
@@ -1690,10 +1768,13 @@ function resetRun(){
   tLeft=(scenario.timing.minutes||15)*60; elapsed=0;
   vitals={...scenario.vitals}; baseline={...scenario.vitals};
   activeTx={}; decayTx={};
+  ensureInjectListDefaults(scenario.injects);
   appliedInjects=[...(scenario.injects||[])].sort((a,b)=>a.t-b.t);
   firedInject.clear();
   triggeredOnce.clear();
   injectAutoOff = [];
+  lastActiveInjectKey = null;
+  lastActiveInjectRef = null;
   buildTxButtons();
   renderAll();
 }
@@ -1804,6 +1885,10 @@ function renderInjects(){
   const host = byId('inject-counts'); if (!host) return; host.innerHTML = '';
   const now = elapsed;
 
+  ensureInjectListDefaults(appliedInjects);
+  const prevActiveKey = lastActiveInjectKey;
+  const prevActive = lastActiveInjectRef;
+
   // keep list sorted
   appliedInjects = [...appliedInjects].sort((a,b)=>a.t-b.t);
 
@@ -1813,7 +1898,7 @@ function renderInjects(){
     const fireT = (+inj.t) | 0;
     if (dur === 0 && now >= fireT && !firedInject.has(injKey(inj))){
       firedInject.add(injKey(inj));
-      blast(1000,700);
+      playInjectStartBeep(inj);
       scheduleTriggersOnce(inj, now);
       activateTxFromInject(inj, now);
     }
@@ -1832,9 +1917,12 @@ function renderInjects(){
   // render active pill (flash red, countdown, beep + chain once)
   if (active){
     const key = injKey(active);
+    if (prevActive && prevActiveKey !== key){
+      playInjectEndBeep(prevActive);
+    }
     if (!firedInject.has(key)){
       firedInject.add(key);
-      blast(1000,700);
+      playInjectStartBeep(active);
       scheduleTriggersOnce(active, now);
       activateTxFromInject(active, now);
     }
@@ -1845,8 +1933,16 @@ function renderInjects(){
     if (active.bg) pill.style.background = active.bg;
     pill.textContent = `${active.name} ${fmt(Math.max(0,left))}`;
     host.appendChild(pill);
+    lastActiveInjectKey = key;
+    lastActiveInjectRef = active;
     return;
   }
+
+  if (prevActive){
+    playInjectEndBeep(prevActive);
+  }
+  lastActiveInjectKey = null;
+  lastActiveInjectRef = null;
 
   // otherwise show the single next upcoming inject
   const next = appliedInjects.find(inj => inj.t > now);
@@ -2567,14 +2663,12 @@ function drawInjects(){
     inj.id = inj.id || `inj${i+1}`;
     const dur = inj.dur ?? 0;
     const hide = inj.hideAfter ?? dur;
+    ensureInjectBeepDefaultsFor(inj);
 
     const untilSec = Math.max(0, (+inj.t||0) - now);
     const untilStr = fmt(untilSec);
 
     const row = document.createElement('div'); row.className='row'; row.style.alignItems='center';
-
-    inj.beepPattern = inj.beepPattern || '1long';
-    inj.endBeepPattern = inj.endBeepPattern || inj.beepPattern || '1long';
 
     row.innerHTML = `
       <span class="badge">#${i+1}</span>
@@ -2681,11 +2775,11 @@ function drawInjects(){
     const endPrevBtn = row.querySelector('.inj-end-beep-preview');
 
     if (startSel && endSel){
-      startSel.value = inj.beepPattern || '1long';
-      endSel.value = inj.endBeepPattern || inj.beepPattern || '1long';
+      startSel.value = inj.beepPattern || DEFAULT_BEEP_PATTERN;
+      endSel.value = inj.endBeepPattern || inj.beepPattern || DEFAULT_BEEP_PATTERN;
 
       startSel.onchange = () => {
-        const prevStart = inj.beepPattern || '1long';
+        const prevStart = inj.beepPattern || DEFAULT_BEEP_PATTERN;
         const prevEnd = inj.endBeepPattern || prevStart;
         inj.beepPattern = startSel.value;
         if (prevEnd === prevStart){
@@ -2697,8 +2791,7 @@ function drawInjects(){
 
       if (startPrevBtn){
         startPrevBtn.onclick = () => {
-          const freq = window.INJECT_START_BEEP_FREQ || 1000;
-          playBeepPattern(inj.beepPattern || '1long', freq);
+          playBeepPattern(inj.beepPattern || DEFAULT_BEEP_PATTERN, START_BEEP_FREQ);
         };
       }
 
@@ -2709,9 +2802,8 @@ function drawInjects(){
 
       if (endPrevBtn){
         endPrevBtn.onclick = () => {
-          const pat = inj.endBeepPattern || inj.beepPattern || '1long';
-          const freq = window.INJECT_END_BEEP_FREQ || 650;
-          playBeepPattern(pat, freq);
+          const pat = inj.endBeepPattern || inj.beepPattern || DEFAULT_BEEP_PATTERN;
+          playBeepPattern(pat, END_BEEP_FREQ);
         };
       }
     }
@@ -2747,15 +2839,20 @@ function addInject(){
     name,
     dur:30,        // default visible 30 s after firing
     hideAfter:30,  // default hide at same time as duration
-    triggers:[]
+    triggers:[],
+    beepPattern: DEFAULT_BEEP_PATTERN,
+    endBeepPattern: DEFAULT_BEEP_PATTERN
   });
   save();
 }
 
 function applyInjects(){
+  ensureInjectListDefaults(scenario.injects);
   appliedInjects=[...(scenario.injects||[])].sort((a,b)=>a.t-b.t);
   firedInject.clear();
   triggeredOnce.clear();
+  lastActiveInjectKey = null;
+  lastActiveInjectRef = null;
   renderInjects();
   log('Applied injects to current run.');
 }
@@ -3059,6 +3156,8 @@ function ensureScenarioDefaults(){
   scenario.text.hospitalEta ??= "—";
   scenario.flags = scenario.flags || {als:false};
   scenario.timing = scenario.timing || {minutes:15};
+  scenario.injects = Array.isArray(scenario.injects) ? scenario.injects : [];
+  ensureInjectListDefaults(scenario.injects);
   scenario.vitals = scenario.vitals || {};
   const v = scenario.vitals;
   if (v.skinColor == null)  v.skinColor = "normal";
@@ -3781,209 +3880,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 })();
 </script>
 
-<!-- Injects Beep Patterns v2 -->
-<script>
-(function(){
-  "use strict";
 
-  const byId = (id)=>document.getElementById(id);
-
-  function saveSafe(){
-    try{ if(typeof save==="function"){ save(); return; } }catch{}
-    try{ localStorage.setItem('emtScenarioRunnerV27', JSON.stringify(scenario)); }catch{}
-  }
-
-  const START_BEEP_FREQ = 1000;
-  const END_BEEP_FREQ = 650;
-  window.INJECT_START_BEEP_FREQ = START_BEEP_FREQ;
-  window.INJECT_END_BEEP_FREQ = END_BEEP_FREQ;
-
-  function ensureBeepDefaults(){
-    (scenario.injects||[]).forEach(inj=>{
-      if (!inj.beepPattern) inj.beepPattern = '1long';
-      if (!inj.endBeepPattern) inj.endBeepPattern = inj.beepPattern || '1long';
-    });
-  }
-
-  function toneOnce(freq=1000, ms=200, vol=0.25){
-    try{
-      const C=new (window.AudioContext||window.webkitAudioContext)();
-      const o=C.createOscillator(), g=C.createGain();
-      o.connect(g); g.connect(C.destination);
-      o.type="square"; o.frequency.value=freq; g.gain.value=vol;
-      o.start(); setTimeout(()=>{ try{o.stop();}catch{} try{C.close();}catch{} }, ms);
-    }catch{}
-  }
-
-  function playBeepPattern(pat, freq = START_BEEP_FREQ){
-    const seq = (()=>{
-      if (pat==='1short') return [200];
-      if (pat==='2short') return [200,150,200];
-      if (pat==='3short') return [200,150,200,150,200];
-      return [700];
-    })();
-    let t=0;
-    for(let i=0;i<seq.length;i++){
-      const isGap = i%2===1;
-      if (isGap){ t += seq[i]; continue; }
-      const dur = seq[i];
-      setTimeout(()=>toneOnce(freq, dur, 0.25), t);
-      t += dur;
-      if (i<seq.length-1) t += (seq[i+1]||0);
-    }
-  }
-  window.playBeepPattern = playBeepPattern;
-
-  function patchBlast(){
-    if (window._origBlastPatched) return;
-    window._origBlastPatched = true;
-    const orig = window.blast;
-    window._origBlast = orig;
-    window.blast = function(f=1000,m=700){
-      try{
-        const now = (window.elapsed|0) || 0;
-        const list = (window.appliedInjects||[]).slice().sort((a,b)=>Math.abs((+a.t||0)-now)-Math.abs((+b.t||0)-now));
-        const cand = list[0];
-        const pat = cand?.beepPattern || '1long';
-        playBeepPattern(pat, START_BEEP_FREQ);
-      }catch{
-        try{ orig && orig(f,m); }catch{}
-      }
-    };
-  }
-
-  function enhanceInjectRows(){
-    const host = byId('inject-list'); if(!host) return;
-    const rows = Array.from(host.querySelectorAll('.row'));
-    rows.forEach((row, idx)=>{
-      if (!Array.isArray(scenario.injects) || !scenario.injects[idx]) return;
-      if (row.querySelector('.inj-beep')) return;
-      const inj = scenario.injects[idx];
-
-      const wrap = document.createElement('div');
-      wrap.className = 'kv';
-      wrap.style.display='flex';
-      wrap.style.alignItems='center';
-      wrap.style.gap='8px';
-      wrap.innerHTML = `
-        <label title="Beep pattern when this inject starts">
-          Start beep
-          <select class="inj-beep">
-            <option value="1short">One short</option>
-            <option value="1long">One long</option>
-            <option value="2short">Two short</option>
-            <option value="3short">Three short</option>
-          </select>
-        </label>
-        <button type="button" class="btn inj-beep-preview" title="Preview start beep">Preview start</button>
-        <label title="Beep pattern when this inject duration ends">
-          End beep
-          <select class="inj-end-beep">
-            <option value="1short">One short</option>
-            <option value="1long">One long</option>
-            <option value="2short">Two short</option>
-            <option value="3short">Three short</option>
-          </select>
-        </label>
-        <button type="button" class="btn inj-end-beep-preview" title="Preview end beep">Preview end</button>
-      `;
-      row.appendChild(wrap);
-
-      const sel = row.querySelector('.inj-beep');
-      const prev= row.querySelector('.inj-beep-preview');
-      const endSel = row.querySelector('.inj-end-beep');
-      const endPrev = row.querySelector('.inj-end-beep-preview');
-      sel.value = inj.beepPattern || '1long';
-      endSel.value = inj.endBeepPattern || inj.beepPattern || '1long';
-      sel.addEventListener('change', ()=>{
-        const prevStart = scenario.injects[idx].beepPattern || '1long';
-        const prevEnd = scenario.injects[idx].endBeepPattern || prevStart;
-        scenario.injects[idx].beepPattern = sel.value;
-        if (prevEnd === prevStart){
-          scenario.injects[idx].endBeepPattern = sel.value;
-          endSel.value = sel.value;
-        }
-        saveSafe();
-      });
-      prev.addEventListener('click', ()=> playBeepPattern(scenario.injects[idx].beepPattern || '1long', START_BEEP_FREQ));
-      endSel.addEventListener('change', ()=>{
-        scenario.injects[idx].endBeepPattern = endSel.value;
-        saveSafe();
-      });
-      endPrev.addEventListener('click', ()=>{
-        const pat = scenario.injects[idx].endBeepPattern || scenario.injects[idx].beepPattern || '1long';
-        playBeepPattern(pat, END_BEEP_FREQ);
-      });
-    });
-  }
-
-  let _lastActiveInj = null;
-  function currentActiveInject(now){
-    let active=null;
-    const list = (window.appliedInjects||[]);
-    for (const inj of list){
-      const dur = +inj.dur || 0; if (!dur) continue;
-      const fireT = (+inj.t)|0, endT = fireT + dur;
-      if (now >= fireT && now <= endT){
-        if (!active || fireT > ((+active?.t)|0)) active = inj;
-      }
-    }
-    return active;
-  }
-  function watchInjectStartEnd(){
-    const now = (window.elapsed|0) || 0;
-    const cur = currentActiveInject(now);
-    const changed = ( (_lastActiveInj?.id||null) !== (cur?.id||null) ) ||
-                    ( _lastActiveInj && cur && ((+_lastActiveInj.t|0) !== (+cur.t|0)) );
-    if (changed){
-      if (_lastActiveInj && (!_lastActiveInj.id || !_lastActiveInj || (_lastActiveInj.id !== cur?.id) || ((+_lastActiveInj.t|0) !== (+cur?.t|0)))){
-        const pat = _lastActiveInj.endBeepPattern || _lastActiveInj.beepPattern || '1long';
-        playBeepPattern(pat, END_BEEP_FREQ);
-      }
-      _lastActiveInj = cur || null;
-    }
-  }
-
-  function patchTick(){
-    if (window._origTick_beep) return;
-    if (typeof window.tick !== 'function') return;
-    window._origTick_beep = window.tick;
-    window.tick = function(){
-      window._origTick_beep();
-      try{ watchInjectStartEnd(); }catch{}
-    };
-  }
-
-  function patchDrawInjects(){
-    if (window._origDrawInjects_beep) return;
-    if (typeof window.drawInjects!=='function') return;
-    window._origDrawInjects_beep = window.drawInjects;
-    window.drawInjects = function(){
-      window._origDrawInjects_beep();
-      try{ ensureBeepDefaults(); enhanceInjectRows(); }catch{}
-    };
-  }
-
-  function boot(){
-    try{
-      ensureBeepDefaults();
-      patchBlast();
-      patchDrawInjects();
-      patchTick();
-      setTimeout(()=>{ try{ enhanceInjectRows(); }catch{} }, 50);
-    }catch(e){ console.error('[inject-beeps v2]', e); }
-  }
-  function ready(){
-    if (document.readyState==='complete' || document.readyState==='interactive'){
-      const tryBoot = ()=>{ if (typeof window.drawInjects==='function' && typeof window.blast==='function' && typeof window.tick==='function'){ boot(); } else { setTimeout(tryBoot,100); } };
-      tryBoot();
-    } else {
-      document.addEventListener('DOMContentLoaded', ready, {once:true});
-    }
-  }
-  ready();
-})();
-</script>
 
 <!-- Global reset (Clear All) -->
 <script>
