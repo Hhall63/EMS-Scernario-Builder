@@ -2527,6 +2527,9 @@ function drawInjects(){
 
     const row = document.createElement('div'); row.className='row'; row.style.alignItems='center';
 
+    inj.beepPattern = inj.beepPattern || '1long';
+    inj.endBeepPattern = inj.endBeepPattern || inj.beepPattern || '1long';
+
     row.innerHTML = `
       <span class="badge">#${i+1}</span>
 
@@ -2555,6 +2558,29 @@ function drawInjects(){
         Tx on fire
     <input class="txon" placeholder="txA,txB" value="${(inj.txOn||[]).join(',')}">
     </label>
+
+      <div class="kv inj-beep-wrap" style="display:flex;align-items:center;gap:8px">
+        <label title="Beep pattern when this inject starts">
+          Start beep
+          <select class="inj-beep">
+            <option value="1short">One short</option>
+            <option value="1long">One long</option>
+            <option value="2short">Two short</option>
+            <option value="3short">Three short</option>
+          </select>
+        </label>
+        <button type="button" class="btn inj-beep-preview" title="Preview start beep">Preview start</button>
+        <label title="Beep pattern when this inject duration ends (650 Hz)">
+          End beep
+          <select class="inj-end-beep">
+            <option value="1short">One short</option>
+            <option value="1long">One long</option>
+            <option value="2short">Two short</option>
+            <option value="3short">Three short</option>
+          </select>
+        </label>
+        <button type="button" class="btn inj-end-beep-preview" title="Preview end beep">Preview end</button>
+      </div>
 
       <label class="switch" title="Manually start next inject’s countdown now">
         <input type="checkbox" class="start-next">
@@ -2602,6 +2628,47 @@ function drawInjects(){
             .filter(Boolean);
         save();
     };
+
+    const startSel = row.querySelector('.inj-beep');
+    const startPrevBtn = row.querySelector('.inj-beep-preview');
+    const endSel = row.querySelector('.inj-end-beep');
+    const endPrevBtn = row.querySelector('.inj-end-beep-preview');
+
+    if (startSel && endSel){
+      startSel.value = inj.beepPattern || '1long';
+      endSel.value = inj.endBeepPattern || inj.beepPattern || '1long';
+
+      startSel.onchange = () => {
+        const prevStart = inj.beepPattern || '1long';
+        const prevEnd = inj.endBeepPattern || prevStart;
+        inj.beepPattern = startSel.value;
+        if (prevEnd === prevStart){
+          inj.endBeepPattern = inj.beepPattern;
+          endSel.value = inj.endBeepPattern;
+        }
+        save();
+      };
+
+      if (startPrevBtn){
+        startPrevBtn.onclick = () => {
+          const freq = window.INJECT_START_BEEP_FREQ || 1000;
+          playBeepPattern(inj.beepPattern || '1long', freq);
+        };
+      }
+
+      endSel.onchange = () => {
+        inj.endBeepPattern = endSel.value;
+        save();
+      };
+
+      if (endPrevBtn){
+        endPrevBtn.onclick = () => {
+          const pat = inj.endBeepPattern || inj.beepPattern || '1long';
+          const freq = window.INJECT_END_BEEP_FREQ || 650;
+          playBeepPattern(pat, freq);
+        };
+      }
+    }
 
     // Manual chain start
     const startNext = row.querySelector('.start-next');
@@ -3675,6 +3742,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
   const START_BEEP_FREQ = 1000;
   const END_BEEP_FREQ = 650;
+  window.INJECT_START_BEEP_FREQ = START_BEEP_FREQ;
+  window.INJECT_END_BEEP_FREQ = END_BEEP_FREQ;
 
   function ensureBeepDefaults(){
     (scenario.injects||[]).forEach(inj=>{
