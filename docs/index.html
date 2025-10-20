@@ -112,7 +112,8 @@ button.muted{opacity:.6;cursor:not-allowed}
   .timer-wrap{display:flex;flex-direction:column;align-items:center;min-width:160px}
   .eta-wrap{gap:6px}
   .eta-wrap .eta-pill{font-size:20px;padding:8px 16px;font-weight:600}
-  .timer-caption{font-size:12px;color:#374151;margin-top:2px}
+  .timer-caption{font-size:14px;color:#000;font-weight:700;margin-top:2px}
+  .stickybar .note-start{font-size:14px;font-weight:700;color:#000}
   .stickybar.row{justify-content:center;gap:32px}          /* extra space between clocks */
   /* make inject timer match main timer size */
   #inject-counts .pill.inject-big{font-size:40px;padding:6px 12px;font-weight:700}
@@ -212,6 +213,51 @@ details.builder-section .section-body{display:grid;gap:12px}
 #p-physical{font-size:16px;color:#111}
 #p-physical ul{margin:6px 0 0 18px;padding:0}
 #p-physical li{margin:2px 0}
+
+/* APGAR horizontal layout */
+#p-apgar-wrap .apgar-table-card{
+  border:1px solid var(--b);
+  border-radius:12px;
+  background:#fff;
+  padding:12px;
+  display:grid;
+  gap:10px;
+}
+#p-apgar-wrap .apgar-table{
+  display:grid;
+  gap:8px;
+}
+#p-apgar-wrap .apgar-header,
+#p-apgar-wrap .apgar-row,
+#p-apgar-wrap .apgar-footer{
+  display:grid;
+  gap:8px;
+  grid-template-columns:minmax(180px,1.2fr) minmax(60px,.6fr) minmax(140px,1fr) minmax(60px,.6fr) minmax(140px,1fr);
+  align-items:center;
+}
+#p-apgar-wrap .apgar-label{
+  font-weight:600;
+  color:#111;
+}
+#p-apgar-wrap .apgar-header{
+  font-weight:700;
+  border-bottom:1px solid var(--bb);
+  padding-bottom:4px;
+}
+#p-apgar-wrap .apgar-footer{
+  font-weight:700;
+  border-top:1px solid var(--bb);
+  padding-top:6px;
+}
+#p-apgar-wrap .apgar-score{
+  text-align:center;
+}
+#p-apgar-wrap .apgar-note{
+  font-size:14px;
+  font-weight:700;
+  color:#000;
+  white-space:pre-wrap;
+}
 
 /* Flashing background for active treatment buttons */
 @keyframes tflash { 
@@ -3539,35 +3585,42 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const old = byId('p-apgar-wrap'); if (old) old.remove();
     const nbWrap = byId('nb-monitor-wrap');
     let anchor = nbWrap || playPanel.querySelector('.monitor')?.parentElement || playPanel;
+    const rows = APGAR_DOMAINS.map(([key,label])=>`
+            <div class="apgar-row">
+              <div class="apgar-label">${label}</div>
+              <div class="apgar-score badge" id="apscore-one-${key}">0</div>
+              <div class="apgar-note" id="apnote-one-${key}">—</div>
+              <div class="apgar-score badge" id="apscore-five-${key}">0</div>
+              <div class="apgar-note" id="apnote-five-${key}">—</div>
+            </div>
+          `).join('');
     const wrap = h(`
       <div id="p-apgar-wrap">
         <div class="divider"></div>
         <h3>APGAR</h3>
-        <div id="apgar-panels" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          ${apgarPanel('one','1-minute')}
-          ${apgarPanel('five','5-minutes')}
+        <div class="apgar-table-card">
+          <div class="apgar-table">
+            <div class="apgar-header">
+              <div class="apgar-label">Assessment</div>
+              <div class="apgar-score">1-minute</div>
+              <div class="apgar-note">Notes</div>
+              <div class="apgar-score">5-minutes</div>
+              <div class="apgar-note">Notes</div>
+            </div>
+            ${rows}
+            <div class="apgar-footer">
+              <div class="apgar-label">Totals</div>
+              <div class="apgar-score badge" id="aptotal-one">0/10</div>
+              <div class="apgar-note"></div>
+              <div class="apgar-score badge" id="aptotal-five">0/10</div>
+              <div class="apgar-note"></div>
+            </div>
+          </div>
         </div>
       </div>
     `);
     anchor.parentElement.insertBefore(wrap, anchor.nextSibling);
     renderApgarPlayScores();
-  }
-
-  function apgarPanel(which,label){
-    const scores = scenario.apgar[which]||{};
-    const rows = APGAR_DOMAINS.map(([k,lab])=>`
-      <div class="kv">
-        <div style="min-width:140px">${lab}</div>
-        <div class="badge" id="apscore-${which}-${k}" style="min-width:36px;text-align:center">${scores[k]??0}</div>
-      </div>
-      <div class="mini" id="apnote-${which}-${k}" style="margin-bottom:8px">—</div>
-    `).join('');
-    return `
-      <div class="panel" style="border:1px solid var(--b);border-radius:12px;overflow:hidden">
-        <h3 style="border-bottom:1px solid var(--bb)">${label}</h3>
-        <div class="content">${rows}</div>
-        <div class="mini" style="padding:8px 12px;border-top:1px solid var(--bb)">Total: <span id="aptotal-${which}">${apgarTotal(scores)}/10</span></div>
-      </div>`;
   }
 
   function renderApgarPlayScores(){
