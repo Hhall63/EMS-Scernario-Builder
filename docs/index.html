@@ -1637,6 +1637,7 @@ function ensureInjectBeepDefaultsFor(inj){
   if (!inj) return inj;
   if (!inj.beepPattern) inj.beepPattern = DEFAULT_BEEP_PATTERN;
   if (!inj.endBeepPattern) inj.endBeepPattern = inj.beepPattern || DEFAULT_BEEP_PATTERN;
+  if (inj.txAutoOff === undefined) inj.txAutoOff = true;
   return inj;
 }
 function ensureInjectListDefaults(list){
@@ -1777,7 +1778,7 @@ if (txDef && txDef.urgent){
   openUrgent(txDef.urgentMsg || (txDef.label || 'Treatment') + ' activated.');
 }
     // remember to turn off when inject ends (only if it has a duration)
-    if ((+inj.dur||0) > 0){
+    if ((+inj.dur||0) > 0 && inj.txAutoOff !== false){
       injectAutoOff.push({ txId:id, endT, injKey:key });
     }
   });
@@ -2437,7 +2438,13 @@ const urgEl = q('.urgent');
 if (urgEl){ urgEl.checked = !!tx.urgent; urgEl.onchange = ()=>{ tx.urgent = !!urgEl.checked; save(); }; }
 
 const urgMsgEl = q('.urgent-msg');
-if (urgMsgEl){ urgMsgEl.value = tx.urgentMsg || ''; urgMsgEl.oninput = ()=>{ tx.urgentMsg = urgMsgEl.value; save(); }; }
+if (urgMsgEl){
+  urgMsgEl.value = tx.urgentMsg || '';
+  urgMsgEl.oninput = ()=>{
+    tx.urgentMsg = urgMsgEl.value;
+    save({skipRedraw:true});
+  };
+}
 
 // Δ per second + Max
 ['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
@@ -2846,6 +2853,15 @@ function drawInjects(){
         save();
     };
 
+    const txAutoOff = row.querySelector('.tx-auto-off');
+    if (txAutoOff){
+      txAutoOff.checked = inj.txAutoOff !== false;
+      txAutoOff.onchange = () => {
+        inj.txAutoOff = !!txAutoOff.checked;
+        save();
+      };
+    }
+
     const startSel = row.querySelector('.inj-beep');
     const startPrevBtn = row.querySelector('.inj-beep-preview');
     const endSel = row.querySelector('.inj-end-beep');
@@ -2925,6 +2941,7 @@ function addInject(){
     dur:30,        // default visible 30 s after firing
     hideAfter:30,  // default hide at same time as duration
     triggers:[],
+    txAutoOff:true,
     beepPattern: DEFAULT_BEEP_PATTERN,
     endBeepPattern: DEFAULT_BEEP_PATTERN
   });
@@ -2943,7 +2960,8 @@ function applyInjects(){
 }
 
 /* ---------------- Persistence + wiring ---------------- */
-function save(){
+function save(options){
+  const opts = options || {};
   // gather form
   const mt=byId('meta-title'); if(mt) scenario.meta.title=mt.value;
   const ma=byId('meta-author'); if(ma) scenario.meta.author=ma.value;
@@ -3021,7 +3039,9 @@ try{
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
-  drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
+  if (!opts.skipRedraw){
+    drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
+  }
 }
 function load(){
   const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
