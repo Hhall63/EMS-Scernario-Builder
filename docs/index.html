@@ -66,6 +66,40 @@ button.muted{opacity:.6;cursor:not-allowed}
 .audio-row .btn{white-space:nowrap}
 .audio-name{font-size:12px;color:var(--muted)}
 
+#inject-list{display:flex;flex-direction:column;gap:12px}
+.row.inject-row{
+  display:grid;
+  grid-template-columns:auto minmax(220px,2fr) minmax(170px,auto) minmax(110px,1fr) minmax(110px,1fr) minmax(72px,auto) minmax(220px,2fr) minmax(250px,2fr) auto auto;
+  gap:12px;
+  align-items:start;
+  padding:12px;
+  border:1px solid var(--bb);
+  border-radius:12px;
+  background:var(--card);
+}
+.row.inject-row .badge{justify-self:start}
+.row.inject-row .inject-field{display:flex;flex-direction:column;gap:4px}
+.row.inject-row .inject-field .label-title,
+.row.inject-row .inj-beep-wrap .label-title{font-size:12px;font-weight:600;color:#111}
+.row.inject-row input,
+.row.inject-row select{width:100%;padding:6px 8px;border-radius:8px;font-size:14px}
+.row.inject-row .kv{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--bb);border-radius:8px;background:#f9fafb}
+.row.inject-row .kv button{white-space:nowrap}
+.row.inject-row .until-group .label-title{color:var(--muted);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.row.inject-row .inj-beep-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:end}
+.row.inject-row .inj-beep-wrap label{display:flex;flex-direction:column;gap:4px}
+.row.inject-row .inj-beep-wrap button{align-self:end}
+.row.inject-row .switch{align-self:center}
+.row.inject-row .btn{padding:6px 10px;border-radius:8px}
+.row.inject-row .btn.danger{justify-self:end}
+.row.inject-row .color-field input[type="color"]{padding:0;height:32px;width:48px;border-radius:6px}
+@media (max-width:1280px){
+  .row.inject-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .row.inject-row .inj-beep-wrap{grid-template-columns:minmax(0,1fr) auto}
+  .row.inject-row .inj-beep-wrap button{justify-self:start}
+  .row.inject-row .btn.danger{justify-self:start}
+}
+
 
   .switch{display:inline-flex;align-items:center;gap:6px}
   textarea, input[type="text"], input[type="number"], select{width:100%;padding:8px;border-radius:10px;border:1px solid var(--b);background:#fff}
@@ -2711,45 +2745,45 @@ function drawInjects(){
     const untilSec = Math.max(0, (+inj.t||0) - now);
     const untilStr = fmt(untilSec);
 
-    const row = document.createElement('div'); row.className='row'; row.style.alignItems='center';
+    const row = document.createElement('div'); row.className='row inject-row';
 
     row.innerHTML = `
       <span class="badge">#${i+1}</span>
 
-      <label style="flex:2;min-width:180px">Name
+      <label class="inject-field name-field" title="Name shown in the inject list">
+        <span class="label-title">Name</span>
         <input class="name" value="${inj.name||''}" placeholder="Inject name">
       </label>
 
-      <div class="kv" style="display:flex;gap:8px;align-items:center">
-        <div class="muted">Until</div>
-        <div class="pill" title="Time remaining until this inject fires">${untilStr}</div>
+      <div class="kv until-group" title="Time remaining until this inject fires">
+        <span class="label-title">Until</span>
+        <div class="pill">${untilStr}</div>
         <button type="button" class="btn set-time" title="Set scheduled time (mm:ss or seconds)">Set time</button>
       </div>
 
-      <label style="width:140px" title="seconds visible after firing">Duration (s)
+      <label class="inject-field duration-field" title="Seconds visible after firing">
+        <span class="label-title">Duration (s)</span>
         <input class="dur" type="number" min="0" value="${dur}">
       </label>
 
-      <label style="width:160px" title="seconds after firing to remove; default equals duration">Hide after (s)
+      <label class="inject-field hide-field" title="Seconds after firing to remove; default equals duration">
+        <span class="label-title">Hide after (s)</span>
         <input class="hide" type="number" min="0" value="${hide}">
       </label>
-      <label title="Background color for this inject">
-        BG
-        <input class="bg" type="color" value="${inj.bg || '#eef2ff'}">
-        </label>
-      <label title="Comma list of Treatment IDs to turn ON when this inject fires">
-        Tx on fire
-    <input class="txon" placeholder="txA,txB" value="${(inj.txOn||[]).join(',')}">
-    </label>
 
-      <label class="switch" title="Turn off these treatments when the inject duration ends">
-        <input type="checkbox" class="tx-auto-off">
-        <span>Deactivate Tx at end</span>
+      <label class="inject-field color-field" title="Background color for this inject">
+        <span class="label-title">BG</span>
+        <input class="bg" type="color" value="${inj.bg || '#eef2ff'}">
       </label>
 
-      <div class="kv inj-beep-wrap" style="display:flex;align-items:center;gap:8px">
+      <label class="inject-field tx-field" title="Comma list of Treatment IDs to turn ON when this inject fires">
+        <span class="label-title">Tx on fire</span>
+        <input class="txon" placeholder="txA,txB" value="${(inj.txOn||[]).join(',')}">
+      </label>
+
+      <div class="kv inj-beep-wrap">
         <label title="Beep pattern when this inject starts">
-          Start beep
+          <span class="label-title">Start beep</span>
           <select class="inj-beep">
             <option value="none">No audio</option>
             <option value="1short">One short</option>
@@ -2760,7 +2794,7 @@ function drawInjects(){
         </label>
         <button type="button" class="btn inj-beep-preview" title="Preview start beep">Preview start</button>
         <label title="Beep pattern when this inject duration ends (650 Hz)">
-          End beep
+          <span class="label-title">End beep</span>
           <select class="inj-end-beep">
             <option value="none">No audio</option>
             <option value="1short">One short</option>
@@ -2772,7 +2806,7 @@ function drawInjects(){
         <button type="button" class="btn inj-end-beep-preview" title="Preview end beep">Preview end</button>
       </div>
 
-      <label class="switch" title="Manually start next inject’s countdown now">
+      <label class="switch start-next-field" title="Manually start next inject’s countdown now">
         <input type="checkbox" class="start-next">
         <span>Start next now</span>
       </label>
