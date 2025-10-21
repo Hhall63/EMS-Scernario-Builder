@@ -241,12 +241,36 @@ button.muted{opacity:.6;cursor:not-allowed}
 .icon-btn{background:transparent;border:0;cursor:pointer;padding:4px 6px;font-size:16px;line-height:1}
 
 details.builder-section{margin-bottom:16px;padding:12px;border:1px solid var(--bb);border-radius:10px;background:#fafbff}
-details.builder-section summary{list-style:none;display:flex;align-items:center;gap:12px;justify-content:space-between;font-weight:600;cursor:pointer}
+details.builder-section summary{list-style:none;display:flex;align-items:center;gap:12px;font-weight:600;cursor:pointer}
 details.builder-section summary::-webkit-details-marker{display:none}
 details.builder-section summary::marker{display:none}
 details.builder-section[open] summary{border-bottom:1px solid var(--bb);padding-bottom:6px;margin-bottom:12px}
 details.builder-section .section-body{display:grid;gap:12px}
+details.builder-section summary:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:8px}
+details.builder-section summary .section-toggle{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
+  border-radius:6px;
+  border:1px solid transparent;
+  background:transparent;
+  color:var(--muted);
+  font-size:16px;
+  transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+details.builder-section summary .section-toggle:hover,
+details.builder-section summary .section-toggle:focus-visible{
+  background:rgba(37,99,235,.08);
+  border-color:rgba(37,99,235,.2);
+  color:var(--primary);
+  outline:none;
+}
+details.builder-section summary .section-toggle.is-open{color:var(--primary)}
+details.builder-section summary .section-toggle .chevron{display:inline-block;line-height:1}
 .display-toggle{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+details.builder-section summary > .display-toggle{margin-left:auto}
 .display-toggle input{accent-color:var(--primary)}
 .display-toggle-row{display:flex;flex-wrap:wrap;gap:10px;margin-left:auto}
 
@@ -778,6 +802,70 @@ header .title{
 
 <script>
 "use strict";
+const BUILDER_INTERACTIVE_SELECTOR = 'button:not(.section-toggle), input, select, textarea, label, a';
+
+function enhanceBuilderSections(root=document){
+  const candidates = new Set();
+  if (root && typeof root.querySelectorAll === 'function'){
+    root.querySelectorAll('details.builder-section').forEach(node => candidates.add(node));
+  }
+  if (root && root.matches && root.matches('details.builder-section')){
+    candidates.add(root);
+  }
+  const guardSummaryControls = (summary)=>{
+    summary.querySelectorAll(BUILDER_INTERACTIVE_SELECTOR).forEach(ctrl => {
+      if (ctrl.closest('.section-toggle')) return;
+      if (ctrl.dataset.builderGuarded === '1') return;
+      const stop = (event)=>event.stopPropagation();
+      ctrl.addEventListener('click', stop);
+      ctrl.addEventListener('pointerdown', stop);
+      ctrl.dataset.builderGuarded = '1';
+    });
+  };
+  candidates.forEach(details => {
+    if (!details) return;
+    const summary = details.querySelector(':scope > summary');
+    if (!summary) return;
+    guardSummaryControls(summary);
+    if (summary.querySelector('.section-toggle')){
+      details.dataset.sectionEnhanced = '1';
+      return;
+    }
+    const toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'section-toggle';
+    const chevron = document.createElement('span');
+    chevron.className = 'chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    toggle.appendChild(chevron);
+    const hasControls = summary.querySelector('.display-toggle-row, .display-toggle');
+    if (hasControls){
+      toggle.style.marginLeft = '8px';
+    }else{
+      toggle.style.marginLeft = 'auto';
+    }
+    const syncState = ()=>{
+      const open = !!details.open;
+      toggle.classList.toggle('is-open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      toggle.setAttribute('aria-label', open ? 'Collapse section' : 'Expand section');
+      chevron.textContent = open ? '▾' : '▸';
+    };
+    toggle.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      details.open = !details.open;
+      syncState();
+    });
+    details.addEventListener('toggle', syncState);
+    summary.appendChild(toggle);
+    syncState();
+    details.dataset.sectionEnhanced = '1';
+  });
+}
+
+window.enhanceBuilderSections = enhanceBuilderSections;
+enhanceBuilderSections(document.getElementById('build') || document);
 const te = new TextEncoder(), td = new TextDecoder();
 const GH_CONFIG_KEY = 'emtScenarioGithubConfigV1';
 const githubState = { items: [], lastSelected: '' };
@@ -3781,6 +3869,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       </details>
     `);
     anchor.parentElement.insertBefore(block, anchor);
+    if (window.enhanceBuilderSections){
+      window.enhanceBuilderSections(block);
+    }
     APGAR_DOMAINS.forEach(([k])=>{
       const s1 = byId(`apgar1-${k}`), s5 = byId(`apgar5-${k}`);
       if(s1){ s1.value = String(scenario.apgar.one[k] ?? 0); s1.onchange = ()=>{ scenario.apgar.one[k]=+s1.value|0; saveSafe(); updateApgarBuildTotals(); renderApgarPlayScores(); }; }
@@ -3865,6 +3956,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
       </details>
     `);
     vitalsSection.insertAdjacentElement('afterend', nb);
+    if (window.enhanceBuilderSections){
+      window.enhanceBuilderSections(nb);
+    }
 
     const map = {
       'nb-hr':'hr','nb-rr':'rr','nb-spo2':'spo2','nb-sbp':'sbp','nb-dbp':'dbp','nb-cbg':'cbg'
@@ -3907,6 +4001,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     `);
     const hostSection = host.closest('[data-section="treatments"]');
     (hostSection || host.parentElement).insertAdjacentElement('afterend', wrap);
+    if (window.enhanceBuilderSections){
+      window.enhanceBuilderSections(wrap);
+    }
     const add = byId('add-nb-tx');
     if (add){
       add.addEventListener('click', ()=>{
