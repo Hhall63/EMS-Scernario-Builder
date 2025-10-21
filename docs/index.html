@@ -888,8 +888,21 @@ function scenarioForStorage(){
       if (!a) return;
       delete a.data;
       delete a._objectUrl;
-      if (a.url && a.url.startsWith('blob:')){
+      if (a.url && /^blob:/i.test(a.url)){
         delete a.url;
+      }
+      if (a.url && /^blob:null/i.test(a.url)){
+        delete a.url;
+      }
+      if (!a.url){
+        const fallback = normalizeAudioNameToPath(a.name || a.label || '');
+        if (fallback){
+          a.url = fallback;
+          if (!a.name){
+            const leaf = fallback.split('/').pop() || '';
+            a.name = leaf ? decodeURIComponent(leaf) : a.name;
+          }
+        }
       }
     });
   }
@@ -1145,20 +1158,88 @@ function readFileAsDataURL(file){
 }
 
 function getAudioSrc(a){
-  // prefer runtime object URL, then normal url, then (legacy) data
-  const raw = (a && (a._objectUrl || a.url || a.data)) || '';
-  if (!raw) return '';
-  const trimmed = String(raw).trim();
-  if (!trimmed) return '';
-  if (/^(?:blob:|data:|https?:|file:|\/\/|\/)/i.test(trimmed)){
+  if (!a) return '';
+
+  const pick = (value) => {
+    if (value == null) return '';
+    const trimmed = String(value).trim();
+    if (!trimmed) return '';
+    if (/^blob:null/i.test(trimmed)) return '';
     return trimmed;
+  };
+
+  // prefer runtime object URL, then normal url, then (legacy) data
+  let raw = pick(a._objectUrl);
+  if (!raw) raw = pick(a.url);
+  if (!raw) raw = pick(a.data);
+
+  if (raw){
+    if (/^(?:blob:|data:|https?:|file:|\/\/|\/)/i.test(raw)){
+      return raw;
+    }
+    const normalized = ensureLibraryPath(raw);
+    if (normalized){
+      return normalized;
+    }
+    const base = getAudioLibraryBase();
+    return `${base}${raw.replace(/^\/+/, '')}`;
   }
-  const normalized = ensureLibraryPath(trimmed);
-  if (normalized){
-    return normalized;
+
+  const fallback = normalizeAudioNameToPath(a.name) || normalizeAudioNameToPath(a.label);
+  return fallback || '';
+}
+
+function stripDuplicateSuffix(filename){
+  if (!filename) return '';
+  return String(filename).replace(/\s*\(\d+\)(\.[^./\\]+)$/,'$1');
+}
+
+function matchAudioLibraryByFilename(filename){
+  if (!filename) return '';
+  const lower = String(filename).toLowerCase();
+  const target = `/${lower}`;
+
+  if (audioLibraryLoaded && Array.isArray(audioLibrary) && audioLibrary.length){
+    let match = audioLibrary.find(path => path.toLowerCase().endsWith(target));
+    if (match) return match;
+
+    const stripped = stripDuplicateSuffix(lower);
+    if (stripped !== lower){
+      const altTarget = `/${stripped}`;
+      match = audioLibrary.find(path => path.toLowerCase().endsWith(altTarget));
+      if (match) return match;
+    }
+
+    const collapsed = lower.replace(/\s+/g, '');
+    match = audioLibrary.find(path => {
+      const candidate = String(path || '');
+      const leaf = candidate.split('/').pop();
+      if (!leaf) return false;
+      return leaf.toLowerCase().replace(/\s+/g,'') === collapsed;
+    });
+    if (match) return match;
   }
-  const base = getAudioLibraryBase();
-  return `${base}${trimmed.replace(/^\/+/, '')}`;
+
+  return '';
+}
+
+function normalizeAudioNameToPath(name){
+  const clean = (name == null ? '' : String(name)).trim();
+  if (!clean) return '';
+
+  const libraryMatch = matchAudioLibraryByFilename(clean);
+  if (libraryMatch) return libraryMatch;
+
+  const stripped = stripDuplicateSuffix(clean);
+  if (stripped !== clean){
+    const alt = ensureLibraryPath(stripped);
+    if (alt) return alt;
+  }
+
+  const normalized = ensureLibraryPath(clean);
+  if (normalized) return normalized;
+
+  return '';
 }
 
 function sanitizeAudioBase(base){
@@ -3291,7 +3372,30 @@ function ensureScenarioDefaults(){
   if (v.rrQuality == null)  v.rrQuality = "normal";
   scenario.sample = scenario.sample || {s:"",a:"",m:"",p:"",l:"",e:"",phys:""};
   scenario.opqrst = scenario.opqrst || {o:"",p:"",q:"",r:"",s:"",t:""};
-  scenario.audios = Array.isArray(scenario.audios) ? scenario.audios : [];
+  scenario.audios = Array.isArray(scenario.audios) ? scenario.audios.filter(Boolean) : [];
+  scenario.audios.forEach((audio, idx) => {
+    if (!audio || typeof audio !== 'object') return;
+    if (!audio.id) audio.id = `aud${idx+1}`;
+    if (audio._objectUrl && /^blob:null/i.test(audio._objectUrl)){
+      delete audio._objectUrl;
+    }
+    if (audio.url && /^blob:null/i.test(audio.url)){
+      delete audio.url;
+    }
+    if (!audio.url){
+      const fallback = normalizeAudioNameToPath(audio.name || audio.label || '');
+      if (fallback){
+        audio.url = fallback;
+        if (!audio.name){
+          const leaf = fallback.split('/').pop() || '';
+          audio.name = leaf ? decodeURIComponent(leaf) : audio.name;
+        }
+      }
+    }
+    audio.bg = audio.bg || '#fafafa';
+    audio.bgOn = audio.bgOn || '#c7f7c7';
+    audio.flashOn = !!audio.flashOn;
+  });
   scenario.treatments = Array.isArray(scenario.treatments) ? scenario.treatments : [];
   scenario.prompts = Array.isArray(scenario.prompts) ? scenario.prompts : [];
   if (!scenario.apgar) scenario.apgar = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.apgar));
