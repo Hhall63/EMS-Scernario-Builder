@@ -90,6 +90,7 @@
             "type": "array",
             "items": { "type": "string", "minLength": 1 }
           },
+          "txAutoOff": { "type": "boolean" },
           "triggers": {
             "type": "array",
             "items": {
