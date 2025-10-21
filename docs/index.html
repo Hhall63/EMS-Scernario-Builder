@@ -431,47 +431,55 @@ header .title{
 
   <div class="panel">
     <div class="content">
-      <div id="github-scenarios" class="kv" style="padding:12px; display:grid; gap:12px; margin-bottom:16px;">
-        <div class="row" style="align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-          <h3 style="margin:0;">GitHub Scenarios</h3>
-          <div id="gh-status" class="mini" data-gh-status></div>
+      <details class="builder-section" data-section="github" open>
+        <summary>
+          <span>GitHub Scenarios</span>
+          <span class="mini" data-gh-status></span>
+        </summary>
+        <div class="section-body" id="github-scenarios">
+          <div class="grid">
+            <label>Owner / Org <input id="gh-owner" type="text" placeholder="e.g., county-ems"></label>
+            <label>Repository <input id="gh-repo" type="text" placeholder="scenario-library"></label>
+            <label>Branch <input id="gh-branch" type="text" value="main"></label>
+            <label>Folder (optional) <input id="gh-path" type="text" placeholder="scenarios/med"></label>
+          </div>
+          <div class="grid">
+            <label>Committer Name <input id="gh-committer-name" type="text" placeholder="EMS Scenario Builder"></label>
+            <label>Committer Email <input id="gh-committer-email" type="email" placeholder="ems-scenarios@example.com"></label>
+            <label>Token (classic or fine-grained) <input id="gh-token" type="password" autocomplete="off" placeholder="ghp_..."></label>
+            <label>Scenario file name <input id="gh-filename" type="text" placeholder="my-scenario.json"></label>
+          </div>
+          <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
+            <label style="min-width:240px; flex:1 1 260px;">
+              Remote scenarios
+              <select id="gh-scenario-select" data-gh-select>
+                <option value="">(none loaded)</option>
+              </select>
+            </label>
+            <button id="gh-refresh" class="btn">Refresh list</button>
+            <button id="gh-load" class="btn">Load selected</button>
+            <button id="gh-save" class="btn primary">Save to GitHub</button>
+          </div>
+          <div class="help">
+            Provide a personal access token with <code>repo</code> scope (fine-grained tokens need contents:read/write).
+            The folder is optional; leave blank to use the repository root. Enter a scenario file name (or leave it blank
+            to auto-slugify the title) and click <strong>Save to GitHub</strong> to create or update that file. Scenario
+            files are stored as JSON just like the local export. The token is stored in this browser only.
+          </div>
         </div>
-        <div class="grid">
-          <label>Owner / Org <input id="gh-owner" type="text" placeholder="e.g., county-ems"></label>
-          <label>Repository <input id="gh-repo" type="text" placeholder="scenario-library"></label>
-          <label>Branch <input id="gh-branch" type="text" value="main"></label>
-          <label>Folder (optional) <input id="gh-path" type="text" placeholder="scenarios/med"></label>
-        </div>
-        <div class="grid">
-          <label>Committer Name <input id="gh-committer-name" type="text" placeholder="EMS Scenario Builder"></label>
-          <label>Committer Email <input id="gh-committer-email" type="email" placeholder="ems-scenarios@example.com"></label>
-          <label>Token (classic or fine-grained) <input id="gh-token" type="password" autocomplete="off" placeholder="ghp_..."></label>
-          <label>Scenario file name <input id="gh-filename" type="text" placeholder="my-scenario.json"></label>
-        </div>
-        <div class="row" style="align-items:flex-end; gap:12px; flex-wrap:wrap;">
-          <label style="min-width:240px; flex:1 1 260px;">
-            Remote scenarios
-            <select id="gh-scenario-select" data-gh-select>
-              <option value="">(none loaded)</option>
-            </select>
-          </label>
-          <button id="gh-refresh" class="btn">Refresh list</button>
-          <button id="gh-load" class="btn">Load selected</button>
-          <button id="gh-save" class="btn primary">Save to GitHub</button>
-        </div>
-        <div class="help">
-          Provide a personal access token with <code>repo</code> scope (fine-grained tokens need contents:read/write).
-          The folder is optional; leave blank to use the repository root. Enter a scenario file name (or leave it blank
-          to auto-slugify the title) and click <strong>Save to GitHub</strong> to create or update that file. Scenario
-          files are stored as JSON just like the local export. The token is stored in this browser only.
-        </div>
-      </div>
+      </details>
 
-      <h3>Meta</h3>
-      <div class="grid">
-        <label>Title <input id="meta-title" type="text"></label>
-        <label>Author <input id="meta-author" type="text"></label>
-      </div>
+      <details class="builder-section" data-section="meta" open>
+        <summary>
+          <span>Meta</span>
+        </summary>
+        <div class="section-body">
+          <div class="grid">
+            <label>Title <input id="meta-title" type="text"></label>
+            <label>Author <input id="meta-author" type="text"></label>
+          </div>
+        </div>
+      </details>
 
       <div class="divider"></div>
       <details class="builder-section" data-section="text" open>
@@ -550,111 +558,134 @@ header .title{
         </div>
       </details>
 
-    <div class="divider"></div>
-    <h3>Audio Cues</h3>
-    <div id="audio-list"></div>
-    <div class="row">
-    <button id="add-audio" class="btn">Add Audio Button</button>
-    </div>
-
-      <h3>Timing</h3>
-      <div class="grid">
-        <label>Countdown minutes <input id="min" type="number" min="1" value="15"></label>
-      </div>
-      <details open>
-        <summary>Injects</summary>
-        <div class="help">Time accepts <code>mm:ss</code>, <code>m:ss</code>, or seconds (e.g., <code>480</code>).</div>
-        <div id="inject-list"></div>
-        <div id="inj-error" class="error"></div>
-        <div class="row">
-          <label>Time <input id="inj-time" type="text" placeholder="12:30 or 480"></label>
-          <label>Name <input id="inj-name" type="text" placeholder="Airway obstruction"></label>
-          <button id="add-inject" class="btn">Add</button>
-          <button id="apply-injects" class="btn primary">Apply to current run</button>
+      <div class="divider"></div>
+      <details class="builder-section" data-section="audio" open>
+        <summary>
+          <span>Audio Cues</span>
+        </summary>
+        <div class="section-body">
+          <div id="audio-list"></div>
+          <div class="row">
+            <button id="add-audio" class="btn">Add Audio Button</button>
+          </div>
         </div>
       </details>
-      <div class="divider"></div>
-      <h3>Vitals</h3>
-      <div class="three">
-        <label>HR <input id="v-hr" type="number" value="110"></label>
-        <label>RR <input id="v-rr" type="number" value="26"></label>
-        <label>SpO₂ <input id="v-spo2" type="number" step="0.1" value="88"></label>
-        <label>SBP <input id="v-sbp" type="number" value="98"></label>
-        <label>DBP <input id="v-dbp" type="number" value="62"></label>
-        <label>CBG <input id="v-cbg" type="number" value="120"></label>
-      </div>
 
-      <div class="grid" style="margin-top:10px">
-        <label>Pulse Rate <select id="v-hr-rate">
-          <option value="normal">normal</option>
-          <option value="tachycardic">tachycardic</option>
-          <option value="bradycardic">bradycardic</option>
-          <option value="absent">absent</option>
-        </select></label>
-        <label>Pulse Rhythm <select id="v-hr-rhythm">
-          <option value="regular">regular</option>
-          <option value="irregular">irregular</option>
-          <option value="absent">absent</option>
-        </select></label>
-        <label>Pulse Quality <select id="v-hr-quality">
-          <option value="normal">normal</option>
-          <option value="weak">weak</option>
-          <option value="thready">thready</option>
-          <option value="bounding">bounding</option>
-          <option value="absent">absent</option>
-        </select></label>
-      </div>
+      <details class="builder-section" data-section="timing" open>
+        <summary>
+          <span>Timing</span>
+        </summary>
+        <div class="section-body">
+          <div class="grid">
+            <label>Countdown minutes <input id="min" type="number" min="1" value="15"></label>
+          </div>
+          <details open>
+            <summary>Injects</summary>
+            <div class="help">Time accepts <code>mm:ss</code>, <code>m:ss</code>, or seconds (e.g., <code>480</code>).</div>
+            <div id="inject-list"></div>
+            <div id="inj-error" class="error"></div>
+            <div class="row">
+              <label>Time <input id="inj-time" type="text" placeholder="12:30 or 480"></label>
+              <label>Name <input id="inj-name" type="text" placeholder="Airway obstruction"></label>
+              <button id="add-inject" class="btn">Add</button>
+              <button id="apply-injects" class="btn primary">Apply to current run</button>
+            </div>
+          </details>
+        </div>
+      </details>
 
-      <div class="grid">
-        <label>Resp Rate <select id="v-rr-rate">
-          <option value="normal">normal</option>
-          <option value="tachypneic">tachypneic</option>
-          <option value="bradypneic">bradypneic</option>
-          <option value="absent">absent</option>
-        </select></label>
-        <label>Resp Rhythm <select id="v-rr-rhythm">
-          <option value="regular">regular</option>
-          <option value="irregular">irregular</option>
-          <option value="absent">absent</option>
-        </select></label>
-        <label>Resp Quality <select id="v-rr-quality">
-          <option value="normal">normal</option>
-          <option value="shallow">shallow</option>
-          <option value="labored">labored</option>
-          <option value="absent">absent</option>
-        </select></label>
-      </div>
+      <details class="builder-section" data-section="vitals" open>
+        <summary>
+          <span>Vitals</span>
+        </summary>
+        <div class="section-body">
+          <div class="three">
+            <label>HR <input id="v-hr" type="number" value="110"></label>
+            <label>RR <input id="v-rr" type="number" value="26"></label>
+            <label>SpO₂ <input id="v-spo2" type="number" step="0.1" value="88"></label>
+            <label>SBP <input id="v-sbp" type="number" value="98"></label>
+            <label>DBP <input id="v-dbp" type="number" value="62"></label>
+            <label>CBG <input id="v-cbg" type="number" value="120"></label>
+          </div>
 
-      <div class="grid">
-        <label>Skin Color <select id="v-skin-color">
-          <option value="normal">normal</option>
-          <option value="pink">pink</option>
-          <option value="pale">pale</option>
-          <option value="flushed">flushed</option>
-          <option value="cyanotic">cyanotic</option>
-          <option value="mottled">mottled</option>
-          <option value="jaundiced">jaundiced</option>
-        </select></label>
-        <label>Skin Temp <select id="v-skin-temp">
-          <option value="warm">warm</option>
-          <option value="hot">hot</option>
-          <option value="cool">cool</option>
-          <option value="cold">cold</option>
-        </select></label>
-        <label>Skin Moisture <select id="v-skin-moist">
-          <option value="dry">dry</option>
-          <option value="normal">normal</option>
-          <option value="moist">moist</option>
-          <option value="clammy">clammy</option>
-          <option value="diaphoretic">diaphoretic</option>
-        </select></label>
-      </div>
+          <div class="grid" style="margin-top:10px">
+            <label>Pulse Rate <select id="v-hr-rate">
+              <option value="normal">normal</option>
+              <option value="tachycardic">tachycardic</option>
+              <option value="bradycardic">bradycardic</option>
+              <option value="absent">absent</option>
+            </select></label>
+            <label>Pulse Rhythm <select id="v-hr-rhythm">
+              <option value="regular">regular</option>
+              <option value="irregular">irregular</option>
+              <option value="absent">absent</option>
+            </select></label>
+            <label>Pulse Quality <select id="v-hr-quality">
+              <option value="normal">normal</option>
+              <option value="weak">weak</option>
+              <option value="thready">thready</option>
+              <option value="bounding">bounding</option>
+              <option value="absent">absent</option>
+            </select></label>
+          </div>
 
-      <div class="divider"></div>
-      <h3>Treatments</h3>
-      <div id="tx-list"></div>
-      <button id="add-tx" class="btn">Add Treatment</button>
-      <p class="muted">Max caps per vital supported. Off toggles decay toward baseline.</p>
+          <div class="grid">
+            <label>Resp Rate <select id="v-rr-rate">
+              <option value="normal">normal</option>
+              <option value="tachypneic">tachypneic</option>
+              <option value="bradypneic">bradypneic</option>
+              <option value="absent">absent</option>
+            </select></label>
+            <label>Resp Rhythm <select id="v-rr-rhythm">
+              <option value="regular">regular</option>
+              <option value="irregular">irregular</option>
+              <option value="absent">absent</option>
+            </select></label>
+            <label>Resp Quality <select id="v-rr-quality">
+              <option value="normal">normal</option>
+              <option value="shallow">shallow</option>
+              <option value="labored">labored</option>
+              <option value="absent">absent</option>
+            </select></label>
+          </div>
+
+          <div class="grid">
+            <label>Skin Color <select id="v-skin-color">
+              <option value="normal">normal</option>
+              <option value="pink">pink</option>
+              <option value="pale">pale</option>
+              <option value="flushed">flushed</option>
+              <option value="cyanotic">cyanotic</option>
+              <option value="mottled">mottled</option>
+              <option value="jaundiced">jaundiced</option>
+            </select></label>
+            <label>Skin Temp <select id="v-skin-temp">
+              <option value="warm">warm</option>
+              <option value="hot">hot</option>
+              <option value="cool">cool</option>
+              <option value="cold">cold</option>
+            </select></label>
+            <label>Skin Moisture <select id="v-skin-moist">
+              <option value="dry">dry</option>
+              <option value="normal">normal</option>
+              <option value="moist">moist</option>
+              <option value="clammy">clammy</option>
+              <option value="diaphoretic">diaphoretic</option>
+            </select></label>
+          </div>
+        </div>
+      </details>
+
+      <details class="builder-section" data-section="treatments" open>
+        <summary>
+          <span>Treatments</span>
+        </summary>
+        <div class="section-body">
+          <div id="tx-list"></div>
+          <button id="add-tx" class="btn">Add Treatment</button>
+          <p class="muted">Max caps per vital supported. Off toggles decay toward baseline.</p>
+        </div>
+      </details>
 
     </div>
   </div>
@@ -3722,29 +3753,32 @@ document.addEventListener('DOMContentLoaded', ()=>{
   function apgarTotal(node){ return (node.appearance|0)+(node.pulse|0)+(node.grimace|0)+(node.activity|0)+(node.respiration|0); }
 
   function mountApgarBuild(){
-    const anchor = Array.from(document.querySelectorAll('#build h3')).find(n=>n.textContent.trim().toLowerCase().startsWith('audio cues'));
+    const anchor = document.querySelector('#build [data-section="audio"]');
     if(!anchor || byId('obgyn-apgar-build')) return;
     const block = h(`
-      <div id="obgyn-apgar-build">
-        <div class="divider"></div>
-        <div class="display-toggle-row" style="justify-content:flex-end">
-          <label class="display-toggle"><input type="checkbox" data-display-key="apgar" checked> APGAR on Play</label>
-        </div>
-        <h3>APGAR</h3>
-        <div class="grid">
-          <div>
-            <div class="badge">1-minute</div>
-            <div class="grid" style="margin-top:8px">${apgarSelect('apgar1')}</div>
-            <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar1note')}</div>
+      <details id="obgyn-apgar-build" class="builder-section" data-section="apgar" open>
+        <summary>
+          <span>APGAR</span>
+          <div class="display-toggle-row">
+            <label class="display-toggle"><input type="checkbox" data-display-key="apgar" checked> APGAR on Play</label>
           </div>
-          <div>
-            <div class="badge">5-minutes</div>
-            <div class="grid" style="margin-top:8px">${apgarSelect('apgar5')}</div>
-            <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar5note')}</div>
+        </summary>
+        <div class="section-body">
+          <div class="grid">
+            <div>
+              <div class="badge">1-minute</div>
+              <div class="grid" style="margin-top:8px">${apgarSelect('apgar1')}</div>
+              <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar1note')}</div>
+            </div>
+            <div>
+              <div class="badge">5-minutes</div>
+              <div class="grid" style="margin-top:8px">${apgarSelect('apgar5')}</div>
+              <div class="grid" style="margin-top:8px">${apgarNoteInputs('apgar5note')}</div>
+            </div>
           </div>
+          <div class="mini" id="apgar-build-totals" style="margin-top:6px"></div>
         </div>
-        <div class="mini" id="apgar-build-totals" style="margin-top:6px"></div>
-      </div>
+      </details>
     `);
     anchor.parentElement.insertBefore(block, anchor);
     APGAR_DOMAINS.forEach(([k])=>{
@@ -3791,47 +3825,46 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }
 
   function mountNbVitalsBuild(){
-    const vitH3 = Array.from(document.querySelectorAll('#build h3')).find(n => n.textContent.trim() === 'Vitals');
-    if (!vitH3 || byId('obgyn-nb-vitals-build')) return;
-
-    let after = vitH3;
-    let cur = vitH3.nextElementSibling;
-    while (cur && cur.tagName !== 'H3') { after = cur; cur = cur.nextElementSibling; }
+    const vitalsSection = document.querySelector('#build [data-section="vitals"]');
+    if (!vitalsSection || byId('obgyn-nb-vitals-build')) return;
 
     const nb = h(`
-      <div id="obgyn-nb-vitals-build">
-        <div class="divider"></div>
-        <div class="display-toggle-row" style="justify-content:flex-end">
-          <label class="display-toggle"><input type="checkbox" data-display-key="nbVitals" checked> NB Monitor on Play</label>
-          <label class="display-toggle"><input type="checkbox" data-display-key="nbTreatments" checked> NB Treatments on Play</label>
+      <details id="obgyn-nb-vitals-build" class="builder-section" data-section="nb-vitals" open>
+        <summary>
+          <span>Newborn Vitals</span>
+          <div class="display-toggle-row">
+            <label class="display-toggle"><input type="checkbox" data-display-key="nbVitals" checked> NB Monitor on Play</label>
+            <label class="display-toggle"><input type="checkbox" data-display-key="nbTreatments" checked> NB Treatments on Play</label>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="three">
+            <label>HR <input id="nb-hr" type="number" value="${scenario.nbVitals.hr}"></label>
+            <label>RR <input id="nb-rr" type="number" value="${scenario.nbVitals.rr}"></label>
+            <label>SpO₂ <input id="nb-spo2" type="number" step="0.1" value="${scenario.nbVitals.spo2}"></label>
+            <label>SBP <input id="nb-sbp" type="number" value="${scenario.nbVitals.sbp}"></label>
+            <label>DBP <input id="nb-dbp" type="number" value="${scenario.nbVitals.dbp}"></label>
+            <label>CBG <input id="nb-cbg" type="number" value="${scenario.nbVitals.cbg}"></label>
+          </div>
+          <div class="grid" style="margin-top:10px">
+            <label>Pulse Rate <select id="nb-hr-rate"><option>normal</option><option>tachycardic</option><option>bradycardic</option><option>absent</option></select></label>
+            <label>Pulse Rhythm <select id="nb-hr-rhythm"><option>regular</option><option>irregular</option><option>absent</option></select></label>
+            <label>Pulse Quality <select id="nb-hr-quality"><option>normal</option><option>weak</option><option>thready</option><option>bounding</option><option>absent</option></select></label>
+          </div>
+          <div class="grid">
+            <label>Resp Rate <select id="nb-rr-rate"><option>normal</option><option>tachypneic</option><option>bradypneic</option><option>absent</option></select></label>
+            <label>Resp Rhythm <select id="nb-rr-rhythm"><option>regular</option><option>irregular</option><option>absent</option></select></label>
+            <label>Resp Quality <select id="nb-rr-quality"><option>normal</option><option>shallow</option><option>labored</option><option>absent</option></select></label>
+          </div>
+          <div class="grid">
+            <label>Skin Color <select id="nb-skin-color"><option>normal</option><option>pink</option><option>pale</option><option>flushed</option><option>cyanotic</option><option>mottled</option><option>jaundiced</option></select></label>
+            <label>Skin Temp <select id="nb-skin-temp"><option>warm</option><option>hot</option><option>cool</option><option>cold</option></select></label>
+            <label>Skin Moisture <select id="nb-skin-moist"><option>normal</option><option>dry</option><option>moist</option><option>clammy</option><option>diaphoretic</option></select></label>
+          </div>
         </div>
-        <h3>Newborn Vitals</h3>
-        <div class="three">
-          <label>HR <input id="nb-hr" type="number" value="${scenario.nbVitals.hr}"></label>
-          <label>RR <input id="nb-rr" type="number" value="${scenario.nbVitals.rr}"></label>
-          <label>SpO₂ <input id="nb-spo2" type="number" step="0.1" value="${scenario.nbVitals.spo2}"></label>
-          <label>SBP <input id="nb-sbp" type="number" value="${scenario.nbVitals.sbp}"></label>
-          <label>DBP <input id="nb-dbp" type="number" value="${scenario.nbVitals.dbp}"></label>
-          <label>CBG <input id="nb-cbg" type="number" value="${scenario.nbVitals.cbg}"></label>
-        </div>
-        <div class="grid" style="margin-top:10px">
-          <label>Pulse Rate <select id="nb-hr-rate"><option>normal</option><option>tachycardic</option><option>bradycardic</option><option>absent</option></select></label>
-          <label>Pulse Rhythm <select id="nb-hr-rhythm"><option>regular</option><option>irregular</option><option>absent</option></select></label>
-          <label>Pulse Quality <select id="nb-hr-quality"><option>normal</option><option>weak</option><option>thready</option><option>bounding</option><option>absent</option></select></label>
-        </div>
-        <div class="grid">
-          <label>Resp Rate <select id="nb-rr-rate"><option>normal</option><option>tachypneic</option><option>bradypneic</option><option>absent</option></select></label>
-          <label>Resp Rhythm <select id="nb-rr-rhythm"><option>regular</option><option>irregular</option><option>absent</option></select></label>
-          <label>Resp Quality <select id="nb-rr-quality"><option>normal</option><option>shallow</option><option>labored</option><option>absent</option></select></label>
-        </div>
-        <div class="grid">
-          <label>Skin Color <select id="nb-skin-color"><option>normal</option><option>pink</option><option>pale</option><option>flushed</option><option>cyanotic</option><option>mottled</option><option>jaundiced</option></select></label>
-          <label>Skin Temp <select id="nb-skin-temp"><option>warm</option><option>hot</option><option>cool</option><option>cold</option></select></label>
-          <label>Skin Moisture <select id="nb-skin-moist"><option>normal</option><option>dry</option><option>moist</option><option>clammy</option><option>diaphoretic</option></select></label>
-        </div>
-      </div>
+      </details>
     `);
-    after.insertAdjacentElement('afterend', nb);
+    vitalsSection.insertAdjacentElement('afterend', nb);
 
     const map = {
       'nb-hr':'hr','nb-rr':'rr','nb-spo2':'spo2','nb-sbp':'sbp','nb-dbp':'dbp','nb-cbg':'cbg'
@@ -3862,14 +3895,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
     if (byId('nb-tx-section')) return;
     const host = byId('tx-list'); if(!host) return;
     const wrap = h(`
-      <div id="nb-tx-section">
-        <div class="divider"></div>
-        <h3>Newborn Treatments</h3>
-        <div id="nb-tx-list"></div>
-        <button id="add-nb-tx" class="btn">Add Newborn Treatment</button>
-      </div>
+      <details id="nb-tx-section" class="builder-section" data-section="nb-treatments" open>
+        <summary>
+          <span>Newborn Treatments</span>
+        </summary>
+        <div class="section-body">
+          <div id="nb-tx-list"></div>
+          <button id="add-nb-tx" class="btn">Add Newborn Treatment</button>
+        </div>
+      </details>
     `);
-    host.parentElement.insertAdjacentElement('afterend', wrap);
+    const hostSection = host.closest('[data-section="treatments"]');
+    (hostSection || host.parentElement).insertAdjacentElement('afterend', wrap);
     const add = byId('add-nb-tx');
     if (add){
       add.addEventListener('click', ()=>{
