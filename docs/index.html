@@ -1117,7 +1117,64 @@ async function loadScenarioFromGitHub(){
 
 /* ---------------- Utilities ---------------- */
 const byId = (id) => document.getElementById(id);
-const tone = (f=880,m=500)=>{try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type="sine";o.frequency.value=f;g.gain.value=.05;o.start();setTimeout(()=>{o.stop();c.close()},m)}catch{}};
+let toneContext = null;
+function ensureToneContext(){
+  if (toneContext && toneContext.state === 'closed') toneContext = null;
+  if (!toneContext){
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return null;
+    toneContext = new C();
+  }
+  return toneContext;
+}
+function runToneWithContext(fn){
+  const ctx = ensureToneContext();
+  if (!ctx) return;
+  const exec = () => {
+    try{ fn(ctx); }catch{}
+  };
+  if (ctx.state === 'suspended' && typeof ctx.resume === 'function'){
+    try{
+      const maybe = ctx.resume();
+      if (maybe && typeof maybe.then === 'function'){
+        maybe.then(exec).catch(()=>exec());
+        return;
+      }
+    }catch{}
+  }
+  exec();
+}
+(function installToneUnlock(){
+  if (typeof document === 'undefined') return;
+  const unlock = () => {
+    const ctx = ensureToneContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended' && typeof ctx.resume === 'function'){
+      try{ ctx.resume(); }catch{}
+    }
+  };
+  const passiveOnce = { once:true, passive:true };
+  document.addEventListener('pointerdown', unlock, passiveOnce);
+  document.addEventListener('touchstart', unlock, passiveOnce);
+  document.addEventListener('keydown', unlock, { once:true });
+})();
+const tone = (f=880,m=500)=>{
+  runToneWithContext(ctx=>{
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.type = 'sine';
+    o.frequency.value = f;
+    g.gain.value = 0.05;
+    o.start();
+    setTimeout(()=>{
+      try{o.stop();}catch{}
+      try{o.disconnect();}catch{}
+      try{g.disconnect();}catch{}
+    }, m);
+  });
+};
 const fmt = (s) => {s=Math.max(0,s|0);const m=String(Math.floor(s/60)).padStart(2,"0"),n=String(s%60).padStart(2,"0");return m+":"+n};
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 function parseTimeFlexible(s){
@@ -1655,14 +1712,21 @@ function ensureInjectListDefaults(list){
 }
 
 function toneOnce(freq=1000, ms=200, vol=0.25){
-  try{
-    const C=new (window.AudioContext||window.webkitAudioContext)();
-    const o=C.createOscillator(), g=C.createGain();
-    o.connect(g); g.connect(C.destination);
-    o.type="square"; o.frequency.value=freq; g.gain.value=vol;
+  runToneWithContext(ctx=>{
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.type = 'square';
+    o.frequency.value = freq;
+    g.gain.value = vol;
     o.start();
-    setTimeout(()=>{ try{o.stop();}catch{} try{C.close();}catch{} }, ms);
-  }catch{}
+    setTimeout(()=>{
+      try{o.stop();}catch{}
+      try{o.disconnect();}catch{}
+      try{g.disconnect();}catch{}
+    }, ms);
+  });
 }
 
 function playBeepPattern(pattern, freq = START_BEEP_FREQ){
