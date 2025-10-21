@@ -92,6 +92,7 @@ button.muted{opacity:.6;cursor:not-allowed}
 .row.inject-row .kv button{white-space:nowrap}
 .row.inject-row .until-group{flex:0 1 220px;min-width:200px}
 .row.inject-row .until-group .label-title{display:block;color:var(--muted);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.row.inject-row .until-group .saved-time{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .row.inject-row .inj-beep-wrap{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;flex:1 1 360px;min-width:320px}
 .row.inject-row .inj-beep-wrap label{display:flex;flex-direction:column;gap:4px;min-width:210px}
 .row.inject-row .inj-beep-wrap button{align-self:flex-end}
@@ -2749,7 +2750,9 @@ function drawInjects(){
     const hide = inj.hideAfter ?? dur;
     ensureInjectBeepDefaultsFor(inj);
 
-    const untilSec = Math.max(0, (+inj.t||0) - now);
+    const scheduledSec = Math.max(0, (+inj.t||0));
+    const scheduledStr = fmt(scheduledSec);
+    const untilSec = Math.max(0, scheduledSec - now);
     const untilStr = fmt(untilSec);
 
     const row = document.createElement('div'); row.className='row inject-row';
@@ -2762,10 +2765,11 @@ function drawInjects(){
         <input class="name" value="${inj.name||''}" placeholder="Inject name">
       </label>
 
-      <div class="kv until-group" title="Time remaining until this inject fires">
-        <span class="label-title">Until</span>
-        <div class="pill">${untilStr}</div>
-        <button type="button" class="btn set-time" title="Set scheduled time (mm:ss or seconds)">Set time</button>
+      <div class="kv until-group" title="Scheduled fire time and remaining countdown">
+        <span class="label-title">Timing</span>
+        <div class="pill" title="Time remaining until this inject fires">${untilStr}</div>
+        <span class="saved-time" title="Saved fire time">Scheduled ${scheduledStr}</span>
+        <button type="button" class="btn set-time" title="Set scheduled time (currently ${scheduledStr})">Set time</button>
       </div>
 
       <label class="inject-field duration-field" title="Seconds visible after firing">
@@ -2825,7 +2829,8 @@ function drawInjects(){
     row.querySelector('.name').onchange = e => { inj.name = e.target.value; save(); };
 
     row.querySelector('.set-time').onclick = () => {
-      const v = prompt('Set time (mm:ss or seconds):', '');
+      const defaultVal = scheduledStr;
+      const v = prompt('Set time (mm:ss or seconds):', defaultVal);
       if (v == null) return;
       const seconds = parseTimeFlexible(v);
       const err = byId('inj-error');
