@@ -26,6 +26,14 @@ button.success{background:var(--green);color:#fff;border-color:#12833b}
 .btn.tx-on { color:#000 !important; font-weight:700; }
 button.danger{background:var(--red);color:#fff;border-color:#b91c1c}
 button.muted{opacity:.6;cursor:not-allowed}
+/* Larger treatment buttons for better touch targets */
+#tx-buttons .btn,
+#p-tx-buttons .btn,
+#p-nb-tx-buttons .btn{
+  font-size:15px;
+  padding:12px 16px;
+  border-radius:12px;
+}
 /* Badge chip */
 .badge{
   display:inline-flex;
@@ -3117,7 +3125,7 @@ try{
 }
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
   if (!opts.skipRedraw){
-    drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
+    drawInjects(); drawTreatments(); buildTxButtons(); buildNbTxButtons(); renderAudioButtons(); renderAll();
   }
 }
 function load(){
@@ -3734,6 +3742,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
               <option value="toggle" ${tx.mode==='toggle'?'selected':''}>toggle</option>
               <option value="oneShot" ${tx.mode==='oneShot'?'selected':''}>oneShot</option>
             </select></label>
+            <label style="flex:0" title="Background color when OFF">
+              BG <input class="bg" type="color" value="${tx.bg || '#fafafa'}"
+                style="width:46px;padding:0;border:0;background:transparent">
+            </label>
+            <label style="flex:0" title="Background color when ON">
+              BG On <input class="bg-on" type="color" value="${tx.bgOn || tx.bg || '#c7f7c7'}"
+                style="width:60px;padding:0;border:0;background:transparent">
+            </label>
             <label style="width:90px">Priority <input class="prio" type="number" value="${tx.priority??0}"></label>
             <label style="width:110px">Override <input class="ovr" type="checkbox" ${tx.override?'checked':''}></label>
             <button class="btn danger del">Delete</button>
@@ -3779,6 +3795,22 @@ document.addEventListener('DOMContentLoaded', ()=>{
       q('.mode').onchange=()=>{ tx.mode=q('.mode').value; saveSafe(); };
       q('.prio').onchange=()=>{ tx.priority=+q('.prio').value||0; saveSafe(); };
       q('.ovr').onchange=()=>{ tx.override=!!q('.ovr').checked; saveSafe(); };
+      const bgInput = q('.bg');
+      if (bgInput){
+        bgInput.addEventListener('input', ()=>{
+          tx.bg = bgInput.value;
+          saveSafe();
+          buildNbTxButtons();
+        });
+      }
+      const bgOnInput = q('.bg-on');
+      if (bgOnInput){
+        bgOnInput.addEventListener('input', ()=>{
+          tx.bgOn = bgOnInput.value;
+          saveSafe();
+          buildNbTxButtons();
+        });
+      }
       q('.del').onclick=()=>{ scenario.nbTreatments.splice(i,1); saveSafe(); drawNbTreatments(); buildNbTxButtons(); };
       ['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
         q('.e-'+k).onchange=()=>{ tx.eff=tx.eff||{}; tx.eff[k]=parseFloat(q('.e-'+k).value||0); saveSafe(); };
@@ -4012,12 +4044,57 @@ document.addEventListener('DOMContentLoaded', ()=>{
         const b=document.createElement('button');
         b.className='btn';
         b.textContent=tx.label||tx.id;
-        const isOn = !!(nbActiveTx[tx.id] && nbActiveTx[tx.id].on);
-        b.classList.toggle('success', isOn);
+        const getOn = ()=>tx.bgOn || tx.bg || '';
+        const getOff = ()=>tx.bg || '';
+        const hasCustomColors = !!(tx.bg || tx.bgOn);
+        const pickTextColor = (hex)=>{
+          if (!hex || typeof hex !== 'string') return '';
+          const match = hex.trim().match(/^#?([0-9a-f]{6})$/i);
+          if (!match) return '';
+          const raw = match[1];
+          const r = parseInt(raw.slice(0,2),16);
+          const g = parseInt(raw.slice(2,4),16);
+          const b = parseInt(raw.slice(4,6),16);
+          const luminance = (0.2126*r + 0.7152*g + 0.0722*b) / 255;
+          return luminance > 0.6 ? '#111' : '#fff';
+        };
+
+        const applyState = (isOn)=>{
+          b.classList.toggle('tx-on', isOn);
+          if (hasCustomColors){
+            b.classList.remove('success');
+            const tone = isOn ? getOn() : getOff();
+            if (tone){
+              b.style.background = tone;
+              b.style.borderColor = tone;
+              const textColor = pickTextColor(tone);
+              b.style.color = textColor || '';
+            } else {
+              b.style.background = '';
+              b.style.borderColor = '';
+              b.style.color = '';
+            }
+          } else {
+            b.style.background = '';
+            b.style.borderColor = '';
+            b.style.color = '';
+            b.classList.toggle('success', isOn);
+          }
+        };
+
+        const isOnInit = !!(nbActiveTx[tx.id] && nbActiveTx[tx.id].on);
+        applyState(isOnInit);
+
         b.addEventListener('click', ()=>{
           nbActiveTx[tx.id] = nbActiveTx[tx.id] || {on:false, done:false};
-          if (tx.mode==='toggle'){ nbActiveTx[tx.id].on = !nbActiveTx[tx.id].on; }
-          else { nbActiveTx[tx.id].on = true; nbActiveTx[tx.id].done = false; }
+          if (tx.mode==='toggle'){
+            nbActiveTx[tx.id].on = !nbActiveTx[tx.id].on;
+          }
+          else {
+            nbActiveTx[tx.id].on = true;
+            nbActiveTx[tx.id].done = false;
+          }
+          applyState(!!nbActiveTx[tx.id].on);
           saveSafe();
         });
         host.appendChild(b);
