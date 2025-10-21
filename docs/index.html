@@ -249,6 +249,18 @@ details.builder-section .section-body{display:grid;gap:12px}
 .display-toggle-row{display:flex;flex-wrap:wrap;gap:10px;margin-left:auto}
 
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.ancillary-row{display:grid;gap:12px;margin-bottom:12px}
+@media (min-width:720px){
+  .ancillary-row{grid-template-columns:minmax(0,1fr) minmax(220px,1fr)}
+}
+.tx-log{display:flex;flex-direction:column;gap:8px;border:1px solid var(--bb);border-radius:10px;background:#f9fafb}
+.tx-log-header{display:grid;grid-template-columns:minmax(0,1fr) auto auto;font-size:12px;font-weight:600;color:#4b5563;text-transform:uppercase;letter-spacing:.04em}
+.tx-log-entry{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;font-size:14px;padding:6px 0;border-top:1px solid var(--bb)}
+.tx-log-entry:first-of-type{border-top:0;padding-top:0}
+.tx-log-label{font-weight:600}
+.tx-log-start,.tx-log-elapsed{font-variant-numeric:tabular-nums}
+.tx-log-entry--active .tx-log-elapsed{color:var(--green)}
+.tx-log-empty{font-size:12px;color:var(--muted)}
 /* Left column spacing for Physical under AVPU */
 #p-physical{padding-top:4px}
 .two-col .right{border-left:1px solid #000;padding-left:12px}
@@ -688,7 +700,10 @@ header .title{
 <div class="grid">
   <div id="play-ancillary-section">
     <h3>AVPU / NOI-MOI / C-spine</h3>
-    <div id="p-ancillary" class="content"></div>
+    <div class="ancillary-row">
+      <div id="p-ancillary" class="content"></div>
+      <div id="p-treatment-log" class="content tx-log"></div>
+    </div>
 
     <h3>Physical Exam Findings</h3>
     <div id="p-physical" class="content"></div>
@@ -1697,6 +1712,7 @@ let currentAudioIdx = -1; // which audio button is currently playing (-1 = none)
 let running=false, interval=null, tLeft=0, elapsed=0;
 let audioLoop = false;
 let vitals={}, baseline={}, activeTx={}, decayTx={};
+let treatmentLogEntries=[];
 let appliedInjects=[], firedInject=new Set();
 let triggeredOnce = new Set(); // remembers which injects already scheduled their triggers
 let injectAutoOff = []; // [{txId, endT, injKey}]
@@ -1706,6 +1722,53 @@ const START_BEEP_FREQ = 1000;
 const END_BEEP_FREQ = 650;
 let lastActiveInjectKey = null;
 let lastActiveInjectRef = null;
+
+function ensureTxState(id){
+  activeTx[id] = activeTx[id] || { on:false, done:false };
+  return activeTx[id];
+}
+
+function recordTreatmentStart(id, label){
+  const entry = {
+    id,
+    label,
+    startedAt: Math.max(0, elapsed|0),
+    startedRemaining: Math.max(0, tLeft|0),
+    endedAt: null
+  };
+  treatmentLogEntries.push(entry);
+}
+
+function recordTreatmentStop(id){
+  for (let i = treatmentLogEntries.length - 1; i >= 0; i--){
+    const entry = treatmentLogEntries[i];
+    if (entry.id === id && entry.endedAt == null){
+      entry.endedAt = Math.max(0, elapsed|0);
+      break;
+    }
+  }
+}
+
+function setTreatmentOn(id, label){
+  const state = ensureTxState(id);
+  const wasOn = !!state.on;
+  state.on = true;
+  state.done = false;
+  if (!wasOn){
+    recordTreatmentStart(id, label);
+  }
+  return !wasOn;
+}
+
+function setTreatmentOff(id){
+  const state = ensureTxState(id);
+  const wasOn = !!state.on;
+  state.on = false;
+  if (wasOn){
+    recordTreatmentStop(id);
+  }
+  return wasOn;
+}
 
 function ensureInjectBeepDefaultsFor(inj){
   if (!inj) return inj;
@@ -1849,15 +1912,12 @@ function activateTxFromInject(inj, now){
 
   inj.txOn.forEach(id => {
     if (!id) return;
-    activeTx[id] = activeTx[id] || { on:false, done:false };
-    // turn on now
-    activeTx[id].on = true;
-    activeTx[id].done = false;
-    // URGENT popup if treatment is configured
-const txDef = (scenario.treatments||[]).find(t=>t.id===id);
-if (txDef && txDef.urgent){
-  openUrgent(txDef.urgentMsg || (txDef.label || 'Treatment') + ' activated.');
-}
+    const txDef = (scenario.treatments||[]).find(t=>t.id===id);
+    const label = (txDef && txDef.label) ? txDef.label : id;
+    setTreatmentOn(id, label);
+    if (txDef && txDef.urgent){
+      openUrgent(txDef.urgentMsg || (txDef.label || 'Treatment') + ' activated.');
+    }
     // remember to turn off when inject ends (only if it has a duration)
     if ((+inj.dur||0) > 0 && inj.txAutoOff !== false){
       injectAutoOff.push({ txId:id, endT, injKey:key });
@@ -1869,8 +1929,7 @@ function applyInjectAutoOff(now){
   // turn off and start decay at inject end
   injectAutoOff = injectAutoOff.filter(rec => {
     if (now >= rec.endT){
-      if (activeTx[rec.txId]){
-        activeTx[rec.txId].on = false;
+      if (setTreatmentOff(rec.txId)){
         decayTx[rec.txId] = true; // let vitals drift back
       }
       return false; // drop this record
@@ -1902,6 +1961,7 @@ function resetRun(){
   tLeft=(scenario.timing.minutes||15)*60; elapsed=0;
   vitals={...scenario.vitals}; baseline={...scenario.vitals};
   activeTx={}; decayTx={};
+  treatmentLogEntries=[];
   ensureInjectListDefaults(scenario.injects);
   appliedInjects=[...(scenario.injects||[])].sort((a,b)=>a.t-b.t);
   firedInject.clear();
@@ -2205,9 +2265,69 @@ function renderStatic(){
     if (heading && heading.tagName==='H3') heading.classList.toggle('hidden', hidePhys);
   }
 
+  renderTreatmentLog();
+
   // Always refresh audio button list, then sync playing state
   if (typeof renderAudioButtons === 'function') renderAudioButtons();
   if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
+}
+
+function renderTreatmentLog(){
+  const host = byId('p-treatment-log');
+  if (!host) return;
+
+  host.innerHTML = '';
+
+  if (!treatmentLogEntries.length){
+    const empty = document.createElement('div');
+    empty.className = 'tx-log-empty';
+    empty.textContent = 'No treatments started yet.';
+    host.appendChild(empty);
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.className = 'tx-log-header';
+
+  const nameHead = document.createElement('div');
+  nameHead.textContent = 'Treatment';
+  const startHead = document.createElement('div');
+  startHead.textContent = 'Activated';
+  const timerHead = document.createElement('div');
+  timerHead.textContent = 'Timer';
+
+  header.append(nameHead, startHead, timerHead);
+  host.appendChild(header);
+
+  const now = Math.max(0, elapsed|0);
+
+  treatmentLogEntries.forEach(entry => {
+    const row = document.createElement('div');
+    row.className = 'tx-log-entry';
+    if (entry.endedAt == null){
+      row.classList.add('tx-log-entry--active');
+    }
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'tx-log-label';
+    labelEl.textContent = entry.label;
+
+    const startEl = document.createElement('div');
+    startEl.className = 'tx-log-start';
+    startEl.textContent = `T+${fmt(entry.startedAt)}`;
+    if (typeof entry.startedRemaining === 'number'){
+      startEl.title = `${fmt(entry.startedRemaining)} remaining when started`;
+    }
+
+    const elapsedEl = document.createElement('div');
+    elapsedEl.className = 'tx-log-elapsed';
+    const endPoint = entry.endedAt == null ? now : entry.endedAt;
+    const diff = Math.max(0, endPoint - entry.startedAt);
+    elapsedEl.textContent = fmt(diff);
+
+    row.append(labelEl, startEl, elapsedEl);
+    host.appendChild(row);
+  });
 }
 
 
@@ -2246,20 +2366,24 @@ function buildTxButtons(){
 
       // click -> toggle state + visuals
       b.addEventListener('click', () => {
-        activeTx[tx.id] = activeTx[tx.id] || { on:false, done:false };
+        const label = tx.label || tx.id;
         if (tx.mode === 'toggle'){
-          activeTx[tx.id].on = !activeTx[tx.id].on;
-          if (!activeTx[tx.id].on) decayTx[tx.id] = true;
+          if (activeTx[tx.id]?.on){
+            if (setTreatmentOff(tx.id)){
+              decayTx[tx.id] = true;
+            }
+          } else {
+            setTreatmentOn(tx.id, label);
+          }
         } else {
-          activeTx[tx.id].on = true;
-          activeTx[tx.id].done = false;
+          setTreatmentOn(tx.id, label);
         }
 
         // refresh vars in case colors changed
         b.style.setProperty('--on',  getOn());
         b.style.setProperty('--off', getOff());
 
-        const isOn = !!activeTx[tx.id].on;
+        const isOn = !!(activeTx[tx.id] && activeTx[tx.id].on);
         b.classList.toggle('success', isOn);
         b.classList.toggle('tx-on',   isOn);
 
@@ -2270,10 +2394,10 @@ function buildTxButtons(){
           b.classList.remove('tflash');        // stop flashing when OFF
           b.style.background = isOn ? getOn() : getOff();
         }
-// URGENT popup on activation
-if (isOn && tx.urgent){
-  openUrgent(tx.urgentMsg || (tx.label || 'Treatment') + ' activated.');
-}
+        // URGENT popup on activation
+        if (isOn && tx.urgent){
+          openUrgent(tx.urgentMsg || (tx.label || 'Treatment') + ' activated.');
+        }
         renderAll();
       });
 
