@@ -68,36 +68,43 @@ button.muted{opacity:.6;cursor:not-allowed}
 
 #inject-list{display:flex;flex-direction:column;gap:12px}
 .row.inject-row{
-  display:grid;
-  grid-template-columns:auto minmax(220px,2fr) minmax(170px,auto) minmax(110px,1fr) minmax(110px,1fr) minmax(72px,auto) minmax(220px,2fr) minmax(250px,2fr) auto auto;
+  display:flex;
+  flex-wrap:wrap;
   gap:12px;
-  align-items:start;
-  padding:12px;
+  align-items:flex-start;
+  padding:14px;
   border:1px solid var(--bb);
   border-radius:12px;
   background:var(--card);
 }
-.row.inject-row .badge{justify-self:start}
-.row.inject-row .inject-field{display:flex;flex-direction:column;gap:4px}
+.row.inject-row .badge{align-self:center}
+.row.inject-row .inject-field{display:flex;flex-direction:column;gap:4px;flex:1 1 150px;min-width:150px}
+.row.inject-row .name-field{flex:2 1 240px;min-width:240px}
+.row.inject-row .duration-field,
+.row.inject-row .hide-field{flex:1 1 120px;max-width:160px}
+.row.inject-row .color-field{flex:0 0 auto}
+.row.inject-row .tx-field{flex:1 1 220px;min-width:220px}
 .row.inject-row .inject-field .label-title,
 .row.inject-row .inj-beep-wrap .label-title{font-size:12px;font-weight:600;color:#111}
 .row.inject-row input,
-.row.inject-row select{width:100%;padding:6px 8px;border-radius:8px;font-size:14px}
+.row.inject-row select{width:100%;padding:6px 10px;border-radius:8px;font-size:14px}
 .row.inject-row .kv{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border:1px solid var(--bb);border-radius:8px;background:#f9fafb}
 .row.inject-row .kv button{white-space:nowrap}
-.row.inject-row .until-group .label-title{color:var(--muted);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
-.row.inject-row .inj-beep-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:end}
-.row.inject-row .inj-beep-wrap label{display:flex;flex-direction:column;gap:4px}
-.row.inject-row .inj-beep-wrap button{align-self:end}
-.row.inject-row .switch{align-self:center}
-.row.inject-row .btn{padding:6px 10px;border-radius:8px}
-.row.inject-row .btn.danger{justify-self:end}
+.row.inject-row .until-group{flex:0 1 220px;min-width:200px}
+.row.inject-row .until-group .label-title{display:block;color:var(--muted);font-size:11px;letter-spacing:.04em;text-transform:uppercase}
+.row.inject-row .inj-beep-wrap{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;flex:1 1 360px;min-width:320px}
+.row.inject-row .inj-beep-wrap label{display:flex;flex-direction:column;gap:4px;min-width:210px}
+.row.inject-row .inj-beep-wrap button{align-self:flex-end}
+.row.inject-row .switch{display:inline-flex;align-items:center;gap:6px}
+.row.inject-row .start-next-field{flex:0 0 auto;align-self:center}
+.row.inject-row .btn{padding:6px 12px;border-radius:8px}
+.row.inject-row .btn.danger{margin-left:auto}
 .row.inject-row .color-field input[type="color"]{padding:0;height:32px;width:48px;border-radius:6px}
 @media (max-width:1280px){
-  .row.inject-row{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .row.inject-row .inj-beep-wrap{grid-template-columns:minmax(0,1fr) auto}
-  .row.inject-row .inj-beep-wrap button{justify-self:start}
-  .row.inject-row .btn.danger{justify-self:start}
+  .row.inject-row{gap:10px}
+  .row.inject-row .inj-beep-wrap{min-width:0;flex:1 1 100%;align-items:flex-start}
+  .row.inject-row .inj-beep-wrap label{min-width:180px}
+  .row.inject-row .btn.danger{margin-left:0}
 }
 
 
