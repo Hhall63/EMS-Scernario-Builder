@@ -1593,6 +1593,7 @@ let appliedInjects=[], firedInject=new Set();
 let triggeredOnce = new Set(); // remembers which injects already scheduled their triggers
 let injectAutoOff = []; // [{txId, endT, injKey}]
 const DEFAULT_BEEP_PATTERN = '1short';
+const NO_BEEP_PATTERN = 'none';
 const START_BEEP_FREQ = 1000;
 const END_BEEP_FREQ = 650;
 let lastActiveInjectKey = null;
@@ -1622,6 +1623,7 @@ function toneOnce(freq=1000, ms=200, vol=0.25){
 }
 
 function playBeepPattern(pattern, freq = START_BEEP_FREQ){
+  if (!pattern || pattern === NO_BEEP_PATTERN) return;
   const seq = (()=>{
     if (pattern === '1short') return [200];
     if (pattern === '2short') return [200,150,200];
@@ -2737,6 +2739,7 @@ function drawInjects(){
         <label title="Beep pattern when this inject starts">
           Start beep
           <select class="inj-beep">
+            <option value="none">No audio</option>
             <option value="1short">One short</option>
             <option value="1long">One long</option>
             <option value="2short">Two short</option>
@@ -2747,6 +2750,7 @@ function drawInjects(){
         <label title="Beep pattern when this inject duration ends (650 Hz)">
           End beep
           <select class="inj-end-beep">
+            <option value="none">No audio</option>
             <option value="1short">One short</option>
             <option value="1long">One long</option>
             <option value="2short">Two short</option>
@@ -2812,6 +2816,12 @@ function drawInjects(){
       startSel.value = inj.beepPattern || DEFAULT_BEEP_PATTERN;
       endSel.value = inj.endBeepPattern || inj.beepPattern || DEFAULT_BEEP_PATTERN;
 
+      const syncPreviewState = () => {
+        if (startPrevBtn) startPrevBtn.disabled = (startSel.value === NO_BEEP_PATTERN);
+        if (endPrevBtn) endPrevBtn.disabled = (endSel.value === NO_BEEP_PATTERN);
+      };
+      syncPreviewState();
+
       startSel.onchange = () => {
         const prevStart = inj.beepPattern || DEFAULT_BEEP_PATTERN;
         const prevEnd = inj.endBeepPattern || prevStart;
@@ -2821,6 +2831,7 @@ function drawInjects(){
           endSel.value = inj.endBeepPattern;
         }
         save();
+        syncPreviewState();
       };
 
       if (startPrevBtn){
@@ -2832,6 +2843,7 @@ function drawInjects(){
       endSel.onchange = () => {
         inj.endBeepPattern = endSel.value;
         save();
+        syncPreviewState();
       };
 
       if (endPrevBtn){
