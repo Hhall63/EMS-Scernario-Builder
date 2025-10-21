@@ -1603,6 +1603,7 @@ function ensureInjectBeepDefaultsFor(inj){
   if (!inj) return inj;
   if (!inj.beepPattern) inj.beepPattern = DEFAULT_BEEP_PATTERN;
   if (!inj.endBeepPattern) inj.endBeepPattern = inj.beepPattern || DEFAULT_BEEP_PATTERN;
+  if (inj.txAutoOff === undefined) inj.txAutoOff = true;
   return inj;
 }
 function ensureInjectListDefaults(list){
@@ -1743,7 +1744,7 @@ if (txDef && txDef.urgent){
   openUrgent(txDef.urgentMsg || (txDef.label || 'Treatment') + ' activated.');
 }
     // remember to turn off when inject ends (only if it has a duration)
-    if ((+inj.dur||0) > 0){
+    if ((+inj.dur||0) > 0 && inj.txAutoOff !== false){
       injectAutoOff.push({ txId:id, endT, injKey:key });
     }
   });
@@ -2735,6 +2736,11 @@ function drawInjects(){
     <input class="txon" placeholder="txA,txB" value="${(inj.txOn||[]).join(',')}">
     </label>
 
+      <label class="switch" title="Turn off these treatments when the inject duration ends">
+        <input type="checkbox" class="tx-auto-off">
+        <span>Deactivate Tx at end</span>
+      </label>
+
       <div class="kv inj-beep-wrap" style="display:flex;align-items:center;gap:8px">
         <label title="Beep pattern when this inject starts">
           Start beep
@@ -2806,6 +2812,15 @@ function drawInjects(){
             .filter(Boolean);
         save();
     };
+
+    const txAutoOff = row.querySelector('.tx-auto-off');
+    if (txAutoOff){
+      txAutoOff.checked = inj.txAutoOff !== false;
+      txAutoOff.onchange = () => {
+        inj.txAutoOff = !!txAutoOff.checked;
+        save();
+      };
+    }
 
     const startSel = row.querySelector('.inj-beep');
     const startPrevBtn = row.querySelector('.inj-beep-preview');
@@ -2886,6 +2901,7 @@ function addInject(){
     dur:30,        // default visible 30 s after firing
     hideAfter:30,  // default hide at same time as duration
     triggers:[],
+    txAutoOff:true,
     beepPattern: DEFAULT_BEEP_PATTERN,
     endBeepPattern: DEFAULT_BEEP_PATTERN
   });
