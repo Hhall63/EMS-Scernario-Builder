@@ -3150,6 +3150,14 @@ if (audioBtnsHost){
     }
   });
 }
+  // When audio naturally ends, reset button states so flashing stops
+  safeOn(byId('p-audio'), 'ended', () => {
+    currentAudioIdx = -1;
+    const el = byId('p-audio');
+    if (el) el.currentTime = 0;
+    updateAudioButtonStates();
+  });
+
   // STOP button
   safeOn(byId('p-audio-stop'), 'click', () => {
     const el = byId('p-audio');
