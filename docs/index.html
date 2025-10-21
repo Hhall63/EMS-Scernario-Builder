@@ -2404,7 +2404,13 @@ const urgEl = q('.urgent');
 if (urgEl){ urgEl.checked = !!tx.urgent; urgEl.onchange = ()=>{ tx.urgent = !!urgEl.checked; save(); }; }
 
 const urgMsgEl = q('.urgent-msg');
-if (urgMsgEl){ urgMsgEl.value = tx.urgentMsg || ''; urgMsgEl.oninput = ()=>{ tx.urgentMsg = urgMsgEl.value; save(); }; }
+if (urgMsgEl){
+  urgMsgEl.value = tx.urgentMsg || '';
+  urgMsgEl.oninput = ()=>{
+    tx.urgentMsg = urgMsgEl.value;
+    save({skipRedraw:true});
+  };
+}
 
 // Δ per second + Max
 ['hr','rr','spo2','sbp','dbp','cbg'].forEach(k=>{
@@ -2920,7 +2926,8 @@ function applyInjects(){
 }
 
 /* ---------------- Persistence + wiring ---------------- */
-function save(){
+function save(options){
+  const opts = options || {};
   // gather form
   const mt=byId('meta-title'); if(mt) scenario.meta.title=mt.value;
   const ma=byId('meta-author'); if(ma) scenario.meta.author=ma.value;
@@ -2998,7 +3005,9 @@ try{
   const a=byId('autosave'); if(a){ a.textContent='storage full'; }
 }
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
-  drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
+  if (!opts.skipRedraw){
+    drawInjects(); drawTreatments(); buildTxButtons(); renderAudioButtons(); renderAll();
+  }
 }
 function load(){
   const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
