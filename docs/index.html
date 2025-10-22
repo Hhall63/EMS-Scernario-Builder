@@ -1981,9 +1981,10 @@ const DEFAULT_AUDIO_VOLUME = 100;
 function normalizeAudioFootnote(a){
   if (!a || typeof a !== 'object') return '';
   const label = typeof a.footnoteLabel === 'string' ? a.footnoteLabel.trim() : '';
+  const legacyValue = typeof a.footnoteLabelValue === 'string' ? a.footnoteLabelValue.trim() : '';
   let text = typeof a.footnoteText === 'string' ? a.footnoteText.trim() : '';
-  if (!text && label){
-    text = label;
+  if (!text){
+    text = label || legacyValue;
   }
   if (text){
     a.footnoteText = text;
@@ -1992,6 +1993,9 @@ function normalizeAudioFootnote(a){
   }
   if (Object.prototype.hasOwnProperty.call(a, 'footnoteLabel')){
     delete a.footnoteLabel;
+  }
+  if (Object.prototype.hasOwnProperty.call(a, 'footnoteLabelValue')){
+    delete a.footnoteLabelValue;
   }
   return text;
 }
@@ -3329,6 +3333,8 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const loopDurationStr = loopDurationSec ? fmt(loopDurationSec) : '';
     const volume = normalizeAudioVolume(a.volume);
     const footnoteTextValue = escapeAttr(footnoteText);
+    const footnoteLabelValue = footnoteTextValue; // legacy alias for cached templates
+    void footnoteLabelValue;
     row.innerHTML = `
       <div class="row hdr" style="gap:10px;align-items:center;flex-wrap:wrap">
         <label style="flex:2;min-width:180px">Label
@@ -3402,6 +3408,13 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
         </label>
         <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:220px">
           <span>Footnote text</span>
+          <input class="a-footnote-text" type="text" value="${footnoteTextValue}" placeholder="Shown under play button" maxlength="160">
+        </label>
+        <span class="muted" style="flex:1 1 100%;font-size:12px">Footnote appears beneath the audio button on the play screen.</span>
+      </div>
+      <div class="row footnote" style="gap:10px;align-items:flex-start;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 320px;min-width:220px">
+          <span>Footnote text (bold under play button)</span>
           <input class="a-footnote-text" type="text" value="${footnoteTextValue}" placeholder="Shown under play button" maxlength="160">
         </label>
         <span class="muted" style="flex:1 1 100%;font-size:12px">Footnote appears beneath the audio button on the play screen.</span>
