@@ -274,6 +274,14 @@ details.builder-section summary > .display-toggle{margin-left:auto}
 .display-toggle input{accent-color:var(--primary)}
 .display-toggle-row{display:flex;flex-wrap:wrap;gap:10px;margin-left:auto}
 
+.build-section-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+  margin-bottom:12px;
+}
+
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .ancillary-row{display:grid;gap:12px;margin-bottom:12px}
 @media (min-width:720px){
@@ -455,6 +463,10 @@ header .title{
 
   <div class="panel">
     <div class="content">
+      <div class="build-section-actions">
+        <button id="collapse-build-sections" type="button" class="btn">Collapse all sections</button>
+      </div>
+
       <details class="builder-section" data-section="github" open>
         <summary>
           <span>GitHub Scenarios</span>
@@ -871,6 +883,16 @@ function enhanceBuilderSections(root=document){
 
 window.enhanceBuilderSections = enhanceBuilderSections;
 enhanceBuilderSections(document.getElementById('build') || document);
+const collapseBuildSectionsBtn = document.getElementById('collapse-build-sections');
+if (collapseBuildSectionsBtn){
+  collapseBuildSectionsBtn.addEventListener('click', ()=>{
+    document.querySelectorAll('#build details.builder-section').forEach(section => {
+      if (section.open){
+        section.open = false;
+      }
+    });
+  });
+}
 const te = new TextEncoder(), td = new TextDecoder();
 const GH_CONFIG_KEY = 'emtScenarioGithubConfigV1';
 const githubState = { items: [], lastSelected: '' };
