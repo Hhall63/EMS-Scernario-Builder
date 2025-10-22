@@ -330,6 +330,11 @@ details.builder-section summary > .display-toggle{margin-left:auto}
 #p-physical ul{margin:6px 0 0 18px;padding:0}
 #p-physical li{margin:2px 0}
 
+/* General impression bullets to match physical findings */
+#p-gi{font-size:16px;color:#111}
+#p-gi ul{margin:6px 0 0 18px;padding:0}
+#p-gi li{margin:2px 0}
+
 /* APGAR horizontal layout */
 #p-apgar-wrap .apgar-table-card{
   border:1px solid var(--b);
@@ -609,9 +614,10 @@ header .title{
         </summary>
         <div class="section-body">
           <div class="help">
-            Add buttons that appear in Play mode. Upload or pick a sound, then use the
-            auto-loop controls to start it when the run begins. Provide a duration,
-            choose a treatment that ends the loop, or set both so the first condition wins.
+            Add buttons that appear in Play mode. Upload or pick a sound, then choose
+            whether it should auto-play when a treatment activates or loop when the run
+            begins. Provide a duration, choose a treatment that ends the loop, or set both
+            so the first condition wins.
           </div>
           <div id="audio-list"></div>
           <div class="row">
@@ -1632,8 +1638,16 @@ function populateAudioLibraryOptions(selectEl, audio){
   if (!current) selectEl.value = '';
 }
 
-function populateStopTreatmentOptions(selectEl, selectedId){
+function populateTreatmentOptions(selectEl, selectedId, options={}){
   if (!selectEl) return;
+  const config = {
+    noneLabel: 'None',
+    emptyLabel: 'None (add treatments first)',
+    enabledTitle: '',
+    disabledTitle: 'Add treatments in the section below to enable this list.',
+    ...options
+  };
+
   selectEl.innerHTML = '';
   const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
   const hasTreatments = list.length > 0;
@@ -1641,16 +1655,16 @@ function populateStopTreatmentOptions(selectEl, selectedId){
   const none = document.createElement('option');
   none.value = '';
   none.textContent = hasTreatments
-    ? 'None'
-    : 'None (add treatments first)';
+    ? config.noneLabel
+    : config.emptyLabel;
   selectEl.appendChild(none);
 
   if (!hasTreatments && !selectedId){
     selectEl.disabled = true;
-    selectEl.title = 'Add treatments in the section below to enable this list.';
+    if (config.disabledTitle) selectEl.title = config.disabledTitle;
   } else {
     selectEl.disabled = false;
-    selectEl.title = 'Choose a treatment that stops this auto-loop when activated';
+    if (config.enabledTitle) selectEl.title = config.enabledTitle;
   }
 
   let hasSelection = false;
@@ -2044,6 +2058,44 @@ function finishAutoLoop(index){
   setLoopButtonState(audioLoop);
 }
 
+async function playAudioIndex(idx, options={}){
+  const opts = {
+    showAlertOnMissing: false,
+    skipAutoLoopClear: false,
+    ...options
+  };
+  const list = Array.isArray(scenario.audios) ? scenario.audios : [];
+  const rec = list[idx];
+  const el = byId('p-audio');
+  const src = rec ? getAudioSrc(rec) : '';
+  if (!rec || !src || !el){
+    if (opts.showAlertOnMissing){
+      alert('No audio file set for this button.');
+    }
+    return false;
+  }
+
+  if (!opts.skipAutoLoopClear){
+    clearAutoLoopTimer(true);
+  }
+
+  if (el.src !== src) el.src = src;
+  el.loop = audioLoop;
+  try{
+    el.currentTime = 0;
+    await el.play();
+    currentAudioIdx = idx;
+    updateAudioButtonStates();
+    return true;
+  }catch(err){
+    console.warn('Audio play failed:', err);
+    if (opts.showAlertOnMissing){
+      alert('Browser blocked autoplay. Click once on the page, then try again.');
+    }
+    return false;
+  }
+}
+
 function maybeStartAutoLoop(){
   clearAutoLoopTimer(true);
   const el = byId('p-audio');
@@ -2108,20 +2160,34 @@ function findTreatmentLabelById(id){
   return (match && (match.label || match.id)) || '';
 }
 
-function describeAudioAutoLoop(a){
-  if (!a || !a.loopOnStart) return '';
+function describeAudioAutomation(a){
+  if (!a) return '';
   const parts = [];
-  const seconds = Math.max(0, Math.floor(+a.loopOnStartFor || 0));
-  if (seconds > 0){
-    parts.push(`for ${fmt(seconds)}`);
+
+  const startId = (a.playOnTreatment || '').trim();
+  if (startId){
+    const label = findTreatmentLabelById(startId) || startId;
+    parts.push(`Auto-plays when ${label} is activated.`);
   }
-  const stopId = (a.loopStopOnTreatment || '').trim();
-  if (stopId){
-    const label = findTreatmentLabelById(stopId) || stopId;
-    parts.push(`until ${label} is activated`);
+
+  if (a.loopOnStart){
+    const details = [];
+    const seconds = Math.max(0, Math.floor(+a.loopOnStartFor || 0));
+    if (seconds > 0){
+      details.push(`for ${fmt(seconds)}`);
+    }
+    const stopId = (a.loopStopOnTreatment || '').trim();
+    if (stopId){
+      const label = findTreatmentLabelById(stopId) || stopId;
+      details.push(`until ${label} is activated`);
+    }
+    const loopText = details.length
+      ? `Loops on Start ${details.join(' and ')}.`
+      : 'Loops on Start.';
+    parts.push(loopText);
   }
-  if (!parts.length) return '';
-  return `Loops on Start ${parts.join(' and ')}.`;
+
+  return parts.join(' ').trim();
 }
 
 function maybeStopAutoLoopForTreatment(txId){
@@ -2132,6 +2198,21 @@ function maybeStopAutoLoopForTreatment(txId){
     finishAutoLoop(index);
   } else {
     clearAutoLoopTimer(true);
+  }
+}
+
+function maybeStartAudioForTreatment(txId){
+  if (!txId) return;
+  const list = Array.isArray(scenario.audios) ? scenario.audios : [];
+  for (let i = 0; i < list.length; i += 1){
+    const rec = list[i];
+    if (!rec) continue;
+    const triggerId = (rec.playOnTreatment || '').trim();
+    if (!triggerId) continue;
+    if (triggerId === txId){
+      playAudioIndex(i, { showAlertOnMissing:false });
+      break;
+    }
   }
 }
 
@@ -2169,6 +2250,7 @@ function setTreatmentOn(id, label){
   if (!wasOn){
     recordTreatmentStart(id, label);
     maybeStopAutoLoopForTreatment(id);
+    maybeStartAudioForTreatment(id);
   }
   return !wasOn;
 }
@@ -2181,6 +2263,29 @@ function setTreatmentOff(id){
     recordTreatmentStop(id);
   }
   return wasOn;
+}
+
+function deactivateTreatmentsFor(sourceId){
+  if (!sourceId) return [];
+  const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
+  const source = list.find(tx => tx && tx.id === sourceId);
+  if (!source) return [];
+  const targets = Array.isArray(source.deactivate) ? source.deactivate : [];
+  const unique = Array.from(new Set(targets)).filter(id => id && id !== sourceId);
+  const turnedOff = [];
+  unique.forEach(id => {
+    if (setTreatmentOff(id)){
+      decayTx[id] = true;
+      turnedOff.push(id);
+    }
+  });
+  return turnedOff;
+}
+
+function activateTreatment(id, label){
+  const activated = setTreatmentOn(id, label);
+  const turnedOff = deactivateTreatmentsFor(id);
+  return { activated, turnedOff };
 }
 
 function ensureInjectBeepDefaultsFor(inj){
@@ -2323,12 +2428,16 @@ function activateTxFromInject(inj, now){
   const endT = now + Math.max(0, +inj.dur || 0);
   const key = injKey(inj);
 
+  let refreshButtons = false;
   inj.txOn.forEach(id => {
     if (!id) return;
     const txDef = (scenario.treatments||[]).find(t=>t.id===id);
     const label = (txDef && txDef.label) ? txDef.label : id;
-    setTreatmentOn(id, label);
-    if (txDef && txDef.urgent){
+    const result = activateTreatment(id, label);
+    if (result.activated || result.turnedOff.length){
+      refreshButtons = true;
+    }
+    if (txDef && txDef.urgent && result.activated){
       openUrgent(txDef.urgentMsg || (txDef.label || 'Treatment') + ' activated.');
     }
     // remember to turn off when inject ends (only if it has a duration)
@@ -2336,6 +2445,9 @@ function activateTxFromInject(inj, now){
       injectAutoOff.push({ txId:id, endT, injKey:key });
     }
   });
+  if (refreshButtons){
+    buildTxButtons();
+  }
   renderAll();
 }
 function applyInjectAutoOff(now){
@@ -2643,7 +2755,11 @@ function renderStatic(){
   // Dispatch, GI, AVPU/NOI/C-spine
   const pd=byId('p-dispatch'), pg=byId('p-gi'), pa=byId('p-ancillary');
   if (pd) pd.textContent=scenario.text.dispatch||'';
-  if (pg) pg.textContent=scenario.text.gi||'';
+  if (pg){
+    const raw = scenario.text.gi || '';
+    const items = raw.split(/\n+|[.;]\s+/).map(s=>s.trim()).filter(Boolean);
+    pg.innerHTML = items.length ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>` : '—';
+  }
   if (pa) pa.innerHTML = `<div><strong>AVPU:</strong> ${scenario.text.avpu||''}</div>
     <div><strong>NOI/MOI:</strong> ${scenario.text.noi||''}</div>
     <div><strong>C-spine:</strong> ${scenario.text.cspine||''}</div>`;
@@ -2777,37 +2893,37 @@ function buildTxButtons(){
       // click -> toggle state + visuals
       b.addEventListener('click', () => {
         const label = tx.label || tx.id;
+        let changed = false;
+        let activatedNow = false;
+        let turnedOff = [];
+
         if (tx.mode === 'toggle'){
           if (activeTx[tx.id]?.on){
             if (setTreatmentOff(tx.id)){
               decayTx[tx.id] = true;
+              changed = true;
             }
           } else {
-            setTreatmentOn(tx.id, label);
+            const result = activateTreatment(tx.id, label);
+            activatedNow = result.activated;
+            turnedOff = result.turnedOff;
+            if (result.activated || result.turnedOff.length) changed = true;
           }
         } else {
-          setTreatmentOn(tx.id, label);
+          const result = activateTreatment(tx.id, label);
+          activatedNow = result.activated;
+          turnedOff = result.turnedOff;
+          if (result.activated || result.turnedOff.length) changed = true;
         }
 
-        // refresh vars in case colors changed
-        b.style.setProperty('--on',  getOn());
-        b.style.setProperty('--off', getOff());
-
-        const isOn = !!(activeTx[tx.id] && activeTx[tx.id].on);
-        b.classList.toggle('success', isOn);
-        b.classList.toggle('tx-on',   isOn);
-
-        if (isOn && tx.flashOn){
-          b.classList.add('tflash');
-          b.style.background = '';
-        } else {
-          b.classList.remove('tflash');        // stop flashing when OFF
-          b.style.background = isOn ? getOn() : getOff();
-        }
-        // URGENT popup on activation
-        if (isOn && tx.urgent){
+        if (activatedNow && tx.urgent){
           openUrgent(tx.urgentMsg || (tx.label || 'Treatment') + ' activated.');
         }
+
+        if (changed || turnedOff.length){
+          buildTxButtons();
+        }
+
         renderAll();
       });
 
@@ -3012,6 +3128,18 @@ function drawTreatments(){
   </label>
 </div>
 <div class="divider"></div>
+<div class="row" style="align-items:flex-start;gap:10px;flex-wrap:wrap">
+  <div style="flex:1 1 260px;display:flex;flex-direction:column;gap:6px">
+    <label>Deactivate other treatments when this activates
+      <select class="deactivate" multiple size="4"></select>
+    </label>
+    <button class="btn deactivate-clear" type="button" style="align-self:flex-start">Clear selections</button>
+  </div>
+  <div class="muted" style="flex:1 1 200px;min-width:200px">
+    Hold Ctrl (Cmd on Mac) to select multiple. Selected treatments turn off immediately when this one activates.
+  </div>
+</div>
+<div class="divider"></div>
 <div class="row" style="align-items:center">
   <label class="switch" title="Show an URGENT popup when this treatment is activated">
     <input class="urgent" type="checkbox">
@@ -3039,6 +3167,76 @@ function drawTreatments(){
     }
 
     // field handlers
+    const deactivateSel = q('.deactivate');
+    const deactivateClearBtn = q('.deactivate-clear');
+    if (deactivateSel){
+      const syncDeactivateOptions = () => {
+        const raw = Array.isArray(tx.deactivate) ? tx.deactivate.filter(Boolean) : [];
+        const unique = Array.from(new Set(raw));
+        deactivateSel.innerHTML = '';
+        const choices = (scenario.treatments || [])
+          .filter((other, idx) => other && other.id && idx !== i && other.id !== tx.id);
+        if (!choices.length){
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'Add another treatment to enable selection';
+          opt.disabled = true;
+          opt.selected = true;
+          deactivateSel.appendChild(opt);
+          deactivateSel.disabled = true;
+          if (deactivateClearBtn){
+            deactivateClearBtn.disabled = true;
+          }
+          if (raw.length){
+            delete tx.deactivate;
+          }
+          return;
+        }
+        const valid = unique.filter(id => choices.some(other => other.id === id));
+        if (valid.length){
+          tx.deactivate = valid;
+        } else if (raw.length){
+          delete tx.deactivate;
+        }
+        deactivateSel.disabled = false;
+        deactivateSel.size = Math.min(6, Math.max(2, choices.length));
+        choices.forEach(other => {
+          const opt = document.createElement('option');
+          opt.value = other.id;
+          opt.textContent = other.label || other.id;
+          if (valid.includes(other.id)) opt.selected = true;
+          deactivateSel.appendChild(opt);
+        });
+        if (deactivateClearBtn){
+          deactivateClearBtn.disabled = valid.length === 0;
+        }
+      };
+
+      syncDeactivateOptions();
+      deactivateSel.addEventListener('focus', syncDeactivateOptions);
+      deactivateSel.addEventListener('change', () => {
+        const selected = Array.from(deactivateSel.selectedOptions)
+          .map(opt => opt.value)
+          .filter(val => val && val !== tx.id);
+        if (selected.length){
+          tx.deactivate = Array.from(new Set(selected));
+        } else {
+          delete tx.deactivate;
+        }
+        save({skipRedraw:true});
+        syncDeactivateOptions();
+      });
+      if (deactivateClearBtn){
+        deactivateClearBtn.addEventListener('click', () => {
+          if (!tx.deactivate || !tx.deactivate.length) return;
+          delete tx.deactivate;
+          save({skipRedraw:true});
+          syncDeactivateOptions();
+          deactivateSel.focus();
+        });
+      }
+    }
+
 q('.label').onchange=()=>{ tx.label=q('.label').value; save(); };
 q('.id').onchange=()=>{ tx.id=q('.id').value; save(); };
 q('.mode').onchange=()=>{ tx.mode=q('.mode').value; save(); };
@@ -3177,10 +3375,43 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
           <input class="a-loop-duration" type="text" value="${loopDurationStr}" placeholder="mm:ss" style="width:80px">
         </label>
         <label style="display:flex;align-items:center;gap:6px;flex:0 1 260px">
+          <span>Start when treatment activates</span>
+          <select class="a-start-trigger" title="Choose a treatment that starts this audio automatically"></select>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;flex:0 1 260px">
           <span>Stop when treatment activates</span>
           <select class="a-loop-stop" title="Choose a treatment that stops this auto-loop when activated"></select>
         </label>
-        <span class="muted" style="flex:1 1 auto;min-width:200px">Audio loops after Start until the duration expires or the selected treatment activates. Add treatments below to populate this list.</span>
+        <span class="muted" style="flex:1 1 auto;min-width:200px">Auto-play this cue when a treatment activates or loop it on Start. Add treatments below to populate the lists.</span>
+      </div>
+      <div class="row footnote" style="gap:10px;align-items:flex-start;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;flex-direction:column;gap:4px;flex:0 0 120px">
+          <span>Footnote letter</span>
+          <input class="a-footnote-label" type="text" value="${footnoteLabelValue}" placeholder="A" maxlength="4">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:220px">
+          <span>Footnote text</span>
+          <input class="a-footnote-text" type="text" value="${footnoteTextValue}" placeholder="Shown under play button">
+        </label>
+        <span class="muted" style="flex:1 1 100%;font-size:12px">Footnote appears beneath the audio button on the play screen.</span>
+      </div>
+      <div class="row footnote" style="gap:10px;align-items:flex-start;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;flex-direction:column;gap:4px;flex:0 0 120px">
+          <span>Footnote letter (bold on play)</span>
+          <input class="a-footnote-label" type="text" value="${footnoteLabelValue}" placeholder="A" maxlength="4">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:220px">
+          <span>Footnote text</span>
+          <input class="a-footnote-text" type="text" value="${footnoteTextValue}" placeholder="Shown under play button" maxlength="160">
+        </label>
+        <span class="muted" style="flex:1 1 100%;font-size:12px">Footnote appears beneath the audio button on the play screen.</span>
+      </div>
+      <div class="row footnote" style="gap:10px;align-items:flex-start;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 320px;min-width:220px">
+          <span>Footnote text (bold under play button)</span>
+          <input class="a-footnote-text" type="text" value="${footnoteTextValue}" placeholder="Shown under play button" maxlength="160">
+        </label>
+        <span class="muted" style="flex:1 1 100%;font-size:12px">Footnote appears beneath the audio button on the play screen.</span>
       </div>
       <div class="row footnote" style="gap:10px;align-items:flex-start;flex-wrap:wrap;margin-top:6px">
         <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 320px;min-width:220px">
@@ -3203,6 +3434,7 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const flashEl = row.querySelector('.a-flash-on');
     const autoLoopEl = row.querySelector('.a-auto-loop');
     const durationEl = row.querySelector('.a-loop-duration');
+    const startEl = row.querySelector('.a-start-trigger');
     const stopEl = row.querySelector('.a-loop-stop');
     const footnoteTextEl = row.querySelector('.a-footnote-text');
 
@@ -3262,8 +3494,31 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
       durationEl.addEventListener('blur', syncDuration);
     }
 
+    if (startEl){
+      populateTreatmentOptions(startEl, (a.playOnTreatment || '').trim() || '', {
+        noneLabel: 'Manual only',
+        emptyLabel: 'Manual only (add treatments first)',
+        enabledTitle: 'Choose a treatment that starts this audio automatically',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
+      startEl.addEventListener('change', ()=>{
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        const choice = (startEl.value || '').trim();
+        if (choice){
+          rec.playOnTreatment = choice;
+        } else {
+          delete rec.playOnTreatment;
+        }
+        save();
+      });
+    }
+
     if (stopEl){
-      populateStopTreatmentOptions(stopEl, (a.loopStopOnTreatment || '').trim() || '');
+      populateTreatmentOptions(stopEl, (a.loopStopOnTreatment || '').trim() || '', {
+        enabledTitle: 'Choose a treatment that stops this auto-loop when activated',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
       stopEl.addEventListener('change', ()=>{
         const rec = (scenario.audios||[])[i];
         if (!rec) return;
@@ -3423,7 +3678,7 @@ function renderAudioButtons(){
     } else {
       btn.disabled = false;
       btn.classList.remove('muted');
-      const desc = describeAudioAutoLoop(a);
+      const desc = describeAudioAutomation(a);
       btn.title = desc || '';
     }
 
@@ -3480,7 +3735,7 @@ function updateAudioButtonStates(){
     } else {
       btn.disabled = false;
       btn.classList.remove('muted');
-      const desc = describeAudioAutoLoop(a);
+      const desc = describeAudioAutomation(a);
       btn.title = desc || '';
     }
 
@@ -3814,11 +4069,26 @@ function save(options){
   }
 
   document.querySelectorAll('#audio-list .audio-row').forEach((row, idx) => {
-    const select = row.querySelector('.a-loop-stop');
-    if (!select) return;
     const rec = (scenario.audios || [])[idx];
-    const selected = (rec && rec.loopStopOnTreatment) ? String(rec.loopStopOnTreatment).trim() : '';
-    populateStopTreatmentOptions(select, selected);
+    const stopSelect = row.querySelector('.a-loop-stop');
+    if (stopSelect){
+      const selectedStop = (rec && rec.loopStopOnTreatment) ? String(rec.loopStopOnTreatment).trim() : '';
+      populateTreatmentOptions(stopSelect, selectedStop, {
+        enabledTitle: 'Choose a treatment that stops this auto-loop when activated',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
+    }
+
+    const startSelect = row.querySelector('.a-start-trigger');
+    if (startSelect){
+      const selectedStart = (rec && rec.playOnTreatment) ? String(rec.playOnTreatment).trim() : '';
+      populateTreatmentOptions(startSelect, selectedStart, {
+        noneLabel: 'Manual only',
+        emptyLabel: 'Manual only (add treatments first)',
+        enabledTitle: 'Choose a treatment that starts this audio automatically',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
+    }
   });
 
   // Display toggles
@@ -4584,7 +4854,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const playPanel = document.querySelector('#play .panel .content'); if(!playPanel) return;
     const h3s = Array.from(playPanel.querySelectorAll('h3'));
     const firstMonitorH3 = h3s.find(h3 => h3.textContent.trim().toLowerCase()==='monitor' && h3.nextElementSibling && h3.nextElementSibling.classList.contains('monitor'));
-    if (firstMonitorH3) firstMonitorH3.textContent = "Mom's Vital Signs";
+    if (firstMonitorH3) firstMonitorH3.textContent = "Patient Vital Signs";
   }
 
   function mountPlayBlocks(){
