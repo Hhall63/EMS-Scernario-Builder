@@ -2225,6 +2225,29 @@ function setTreatmentOff(id){
   return wasOn;
 }
 
+function deactivateTreatmentsFor(sourceId){
+  if (!sourceId) return [];
+  const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
+  const source = list.find(tx => tx && tx.id === sourceId);
+  if (!source) return [];
+  const targets = Array.isArray(source.deactivate) ? source.deactivate : [];
+  const unique = Array.from(new Set(targets)).filter(id => id && id !== sourceId);
+  const turnedOff = [];
+  unique.forEach(id => {
+    if (setTreatmentOff(id)){
+      decayTx[id] = true;
+      turnedOff.push(id);
+    }
+  });
+  return turnedOff;
+}
+
+function activateTreatment(id, label){
+  const activated = setTreatmentOn(id, label);
+  const turnedOff = deactivateTreatmentsFor(id);
+  return { activated, turnedOff };
+}
+
 function ensureInjectBeepDefaultsFor(inj){
   if (!inj) return inj;
   if (!inj.beepPattern) inj.beepPattern = DEFAULT_BEEP_PATTERN;
@@ -2365,12 +2388,16 @@ function activateTxFromInject(inj, now){
   const endT = now + Math.max(0, +inj.dur || 0);
   const key = injKey(inj);
 
+  let refreshButtons = false;
   inj.txOn.forEach(id => {
     if (!id) return;
     const txDef = (scenario.treatments||[]).find(t=>t.id===id);
     const label = (txDef && txDef.label) ? txDef.label : id;
-    setTreatmentOn(id, label);
-    if (txDef && txDef.urgent){
+    const result = activateTreatment(id, label);
+    if (result.activated || result.turnedOff.length){
+      refreshButtons = true;
+    }
+    if (txDef && txDef.urgent && result.activated){
       openUrgent(txDef.urgentMsg || (txDef.label || 'Treatment') + ' activated.');
     }
     // remember to turn off when inject ends (only if it has a duration)
@@ -2378,6 +2405,9 @@ function activateTxFromInject(inj, now){
       injectAutoOff.push({ txId:id, endT, injKey:key });
     }
   });
+  if (refreshButtons){
+    buildTxButtons();
+  }
   renderAll();
 }
 function applyInjectAutoOff(now){
@@ -2819,37 +2849,37 @@ function buildTxButtons(){
       // click -> toggle state + visuals
       b.addEventListener('click', () => {
         const label = tx.label || tx.id;
+        let changed = false;
+        let activatedNow = false;
+        let turnedOff = [];
+
         if (tx.mode === 'toggle'){
           if (activeTx[tx.id]?.on){
             if (setTreatmentOff(tx.id)){
               decayTx[tx.id] = true;
+              changed = true;
             }
           } else {
-            setTreatmentOn(tx.id, label);
+            const result = activateTreatment(tx.id, label);
+            activatedNow = result.activated;
+            turnedOff = result.turnedOff;
+            if (result.activated || result.turnedOff.length) changed = true;
           }
         } else {
-          setTreatmentOn(tx.id, label);
+          const result = activateTreatment(tx.id, label);
+          activatedNow = result.activated;
+          turnedOff = result.turnedOff;
+          if (result.activated || result.turnedOff.length) changed = true;
         }
 
-        // refresh vars in case colors changed
-        b.style.setProperty('--on',  getOn());
-        b.style.setProperty('--off', getOff());
-
-        const isOn = !!(activeTx[tx.id] && activeTx[tx.id].on);
-        b.classList.toggle('success', isOn);
-        b.classList.toggle('tx-on',   isOn);
-
-        if (isOn && tx.flashOn){
-          b.classList.add('tflash');
-          b.style.background = '';
-        } else {
-          b.classList.remove('tflash');        // stop flashing when OFF
-          b.style.background = isOn ? getOn() : getOff();
-        }
-        // URGENT popup on activation
-        if (isOn && tx.urgent){
+        if (activatedNow && tx.urgent){
           openUrgent(tx.urgentMsg || (tx.label || 'Treatment') + ' activated.');
         }
+
+        if (changed || turnedOff.length){
+          buildTxButtons();
+        }
+
         renderAll();
       });
 
@@ -3054,6 +3084,15 @@ function drawTreatments(){
   </label>
 </div>
 <div class="divider"></div>
+<div class="row" style="align-items:flex-start;gap:10px;flex-wrap:wrap">
+  <label style="flex:1 1 260px">Deactivate other treatments when this activates
+    <select class="deactivate" multiple size="4"></select>
+  </label>
+  <div class="muted" style="flex:1 1 200px;min-width:200px">
+    Hold Ctrl (Cmd on Mac) to select multiple. Selected treatments turn off immediately when this one activates.
+  </div>
+</div>
+<div class="divider"></div>
 <div class="row" style="align-items:center">
   <label class="switch" title="Show an URGENT popup when this treatment is activated">
     <input class="urgent" type="checkbox">
@@ -3081,6 +3120,60 @@ function drawTreatments(){
     }
 
     // field handlers
+    const deactivateSel = q('.deactivate');
+    if (deactivateSel){
+      const syncDeactivateOptions = () => {
+        const raw = Array.isArray(tx.deactivate) ? tx.deactivate.filter(Boolean) : [];
+        const unique = Array.from(new Set(raw));
+        deactivateSel.innerHTML = '';
+        const choices = (scenario.treatments || [])
+          .filter((other, idx) => other && other.id && idx !== i && other.id !== tx.id);
+        if (!choices.length){
+          const opt = document.createElement('option');
+          opt.value = '';
+          opt.textContent = 'Add another treatment to enable selection';
+          opt.disabled = true;
+          opt.selected = true;
+          deactivateSel.appendChild(opt);
+          deactivateSel.disabled = true;
+          if (raw.length){
+            delete tx.deactivate;
+          }
+          return;
+        }
+        const valid = unique.filter(id => choices.some(other => other.id === id));
+        if (valid.length){
+          tx.deactivate = valid;
+        } else if (raw.length){
+          delete tx.deactivate;
+        }
+        deactivateSel.disabled = false;
+        deactivateSel.size = Math.min(6, Math.max(2, choices.length));
+        choices.forEach(other => {
+          const opt = document.createElement('option');
+          opt.value = other.id;
+          opt.textContent = other.label || other.id;
+          if (valid.includes(other.id)) opt.selected = true;
+          deactivateSel.appendChild(opt);
+        });
+      };
+
+      syncDeactivateOptions();
+      deactivateSel.addEventListener('focus', syncDeactivateOptions);
+      deactivateSel.addEventListener('change', () => {
+        const selected = Array.from(deactivateSel.selectedOptions)
+          .map(opt => opt.value)
+          .filter(val => val && val !== tx.id);
+        if (selected.length){
+          tx.deactivate = Array.from(new Set(selected));
+        } else {
+          delete tx.deactivate;
+        }
+        save({skipRedraw:true});
+        syncDeactivateOptions();
+      });
+    }
+
 q('.label').onchange=()=>{ tx.label=q('.label').value; save(); };
 q('.id').onchange=()=>{ tx.id=q('.id').value; save(); };
 q('.mode').onchange=()=>{ tx.mode=q('.mode').value; save(); };

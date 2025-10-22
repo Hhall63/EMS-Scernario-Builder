@@ -192,6 +192,11 @@
           "min": { "$ref": "#/$defs/vitalDeltaObj" },
           "cap": { "$ref": "#/$defs/vitalDeltaObj" },
           "set": { "$ref": "#/$defs/descriptorSet" },
+          "deactivate": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/id" },
+            "uniqueItems": true
+          },
           "_collapsed": { "type": "boolean" },
           "urgent": { "type": "boolean" },
           "urgentMsg": { "type": "string" }
