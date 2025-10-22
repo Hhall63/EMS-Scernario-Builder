@@ -588,9 +588,14 @@ header .title{
           <span>Audio Cues</span>
         </summary>
         <div class="section-body">
+          <div class="help">
+            Add buttons that appear in Play mode. Upload or pick a sound, then use the
+            auto-loop controls to start it when the run begins. Provide a duration,
+            choose a treatment that ends the loop, or set both so the first condition wins.
+          </div>
           <div id="audio-list"></div>
           <div class="row">
-            <button id="add-audio" class="btn">Add Audio Button</button>
+            <button id="add-audio" class="btn">Add audio cue</button>
           </div>
         </div>
       </details>
@@ -1592,12 +1597,24 @@ function populateAudioLibraryOptions(selectEl, audio){
 function populateStopTreatmentOptions(selectEl, selectedId){
   if (!selectEl) return;
   selectEl.innerHTML = '';
+  const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
+  const hasTreatments = list.length > 0;
+
   const none = document.createElement('option');
   none.value = '';
-  none.textContent = 'None';
+  none.textContent = hasTreatments
+    ? 'None'
+    : 'None (add treatments first)';
   selectEl.appendChild(none);
 
-  const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
+  if (!hasTreatments && !selectedId){
+    selectEl.disabled = true;
+    selectEl.title = 'Add treatments in the section below to enable this list.';
+  } else {
+    selectEl.disabled = false;
+    selectEl.title = 'Choose a treatment that stops this auto-loop when activated';
+  }
+
   let hasSelection = false;
   list.forEach(tx => {
     if (!tx || !tx.id) return;
@@ -1620,6 +1637,7 @@ function populateStopTreatmentOptions(selectEl, selectedId){
     orphan.textContent = `${selectedId} (missing)`;
     orphan.selected = true;
     selectEl.appendChild(orphan);
+    selectEl.disabled = false;
   }
 
   if (!selectedId) selectEl.value = '';
@@ -3081,10 +3099,10 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
           <input class="a-loop-duration" type="text" value="${loopDurationStr}" placeholder="mm:ss" style="width:80px">
         </label>
         <label style="display:flex;align-items:center;gap:6px;flex:0 1 260px">
-          <span>Stop when treatment</span>
+          <span>Stop when treatment activates</span>
           <select class="a-loop-stop" title="Choose a treatment that stops this auto-loop when activated"></select>
         </label>
-        <span class="muted" style="flex:1 1 auto;min-width:200px">Audio loops after Start until the duration expires or the selected treatment activates.</span>
+        <span class="muted" style="flex:1 1 auto;min-width:200px">Audio loops after Start until the duration expires or the selected treatment activates. Add treatments below to populate this list.</span>
       </div>
     `;
 
@@ -3663,7 +3681,14 @@ try{
 }
   const a=byId('autosave'); if(a){ a.textContent='saved'; setTimeout(()=>a.textContent='idle',700); }
   if (!opts.skipRedraw){
-    drawInjects(); drawTreatments(); buildTxButtons(); buildNbTxButtons(); renderAudioButtons(); renderAll();
+    drawInjects();
+    drawTreatments();
+    buildTxButtons();
+    if (typeof buildNbTxButtons === 'function'){
+      buildNbTxButtons();
+    }
+    renderAudioButtons();
+    renderAll();
   }
 }
 function load(){
