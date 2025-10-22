@@ -254,14 +254,29 @@ button.muted{opacity:.6;cursor:not-allowed}
   }
   /* timers with captions + wider spacing */
   .timer-wrap{display:flex;flex-direction:column;align-items:center;min-width:160px}
-  .timer-wrap.inject-wrap{min-width:130px}
+  .timer-wrap.inject-wrap{min-width:0}
+  .timer-wrap.inject-wrap #inject-counts{
+    min-width:0;
+    display:flex;
+    justify-content:center;
+  }
   .eta-wrap{gap:6px}
   .eta-wrap .eta-pill{font-size:20px;padding:8px 16px;font-weight:600}
   .timer-caption{font-size:14px;color:#000;font-weight:700;margin-top:2px}
   .stickybar .note-start{font-size:14px;font-weight:700;color:#000}
   .stickybar.row{justify-content:center;gap:32px}          /* extra space between clocks */
   /* make inject timer compact on play sticky bar */
-  #inject-counts .pill.inject-big{font-size:24px;padding:8px 14px;font-weight:700}
+  #inject-counts .pill.inject-big{
+    display:inline-block;
+    font-size:18px;
+    font-weight:600;
+    padding:6px 12px;
+    line-height:1.3;
+    max-width:200px;
+    text-align:center;
+    white-space:normal;
+    word-break:break-word;
+  }
   /* STICKY BAR CENTER + SIZING */
     .stickybar.sticky-center{justify-content:center; gap:12px}
     .stickybar .bigbtn{font-size:16px; padding:10px 14px}   /* slightly larger */
