@@ -168,6 +168,17 @@
           "loopOnStart": { "type": "boolean" },
           "loopOnStartFor": { "type": "integer", "minimum": 1 },
           "loopStopOnTreatment": { "$ref": "#/$defs/id" },
+          "footnoteLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4,
+            "pattern": "^[^\\s]{1,4}$"
+          },
+          "footnoteText": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
           "name": { "type": "string" }
         }
       }
