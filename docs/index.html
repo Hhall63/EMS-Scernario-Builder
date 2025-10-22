@@ -3085,9 +3085,12 @@ function drawTreatments(){
 </div>
 <div class="divider"></div>
 <div class="row" style="align-items:flex-start;gap:10px;flex-wrap:wrap">
-  <label style="flex:1 1 260px">Deactivate other treatments when this activates
-    <select class="deactivate" multiple size="4"></select>
-  </label>
+  <div style="flex:1 1 260px;display:flex;flex-direction:column;gap:6px">
+    <label>Deactivate other treatments when this activates
+      <select class="deactivate" multiple size="4"></select>
+    </label>
+    <button class="btn deactivate-clear" type="button" style="align-self:flex-start">Clear selections</button>
+  </div>
   <div class="muted" style="flex:1 1 200px;min-width:200px">
     Hold Ctrl (Cmd on Mac) to select multiple. Selected treatments turn off immediately when this one activates.
   </div>
@@ -3121,6 +3124,7 @@ function drawTreatments(){
 
     // field handlers
     const deactivateSel = q('.deactivate');
+    const deactivateClearBtn = q('.deactivate-clear');
     if (deactivateSel){
       const syncDeactivateOptions = () => {
         const raw = Array.isArray(tx.deactivate) ? tx.deactivate.filter(Boolean) : [];
@@ -3136,6 +3140,9 @@ function drawTreatments(){
           opt.selected = true;
           deactivateSel.appendChild(opt);
           deactivateSel.disabled = true;
+          if (deactivateClearBtn){
+            deactivateClearBtn.disabled = true;
+          }
           if (raw.length){
             delete tx.deactivate;
           }
@@ -3156,6 +3163,9 @@ function drawTreatments(){
           if (valid.includes(other.id)) opt.selected = true;
           deactivateSel.appendChild(opt);
         });
+        if (deactivateClearBtn){
+          deactivateClearBtn.disabled = valid.length === 0;
+        }
       };
 
       syncDeactivateOptions();
@@ -3172,6 +3182,15 @@ function drawTreatments(){
         save({skipRedraw:true});
         syncDeactivateOptions();
       });
+      if (deactivateClearBtn){
+        deactivateClearBtn.addEventListener('click', () => {
+          if (!tx.deactivate || !tx.deactivate.length) return;
+          delete tx.deactivate;
+          save({skipRedraw:true});
+          syncDeactivateOptions();
+          deactivateSel.focus();
+        });
+      }
     }
 
 q('.label').onchange=()=>{ tx.label=q('.label').value; save(); };
