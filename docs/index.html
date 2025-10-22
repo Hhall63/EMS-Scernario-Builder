@@ -74,6 +74,10 @@ button.muted{opacity:.6;cursor:not-allowed}
 .audio-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-bottom:8px}
 .audio-row .btn{white-space:nowrap}
 .audio-name{font-size:12px;color:var(--muted)}
+#p-audio-buttons{align-items:flex-start}
+#p-audio-buttons .audio-btn-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:120px}
+#p-audio-buttons .audio-footnote{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;font-size:12px;color:#111;line-height:1.3}
+#p-audio-buttons .audio-footnote strong{font-weight:700;text-transform:uppercase}
 
 #inject-list{display:flex;flex-direction:column;gap:12px}
 .row.inject-row{
@@ -821,6 +825,14 @@ header .title{
 <script>
 "use strict";
 const BUILDER_INTERACTIVE_SELECTOR = 'button:not(.section-toggle), input, select, textarea, label, a';
+
+function escapeAttr(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/"/g,'&quot;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
 
 function enhanceBuilderSections(root=document){
   const candidates = new Set();
@@ -3158,6 +3170,8 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const loopOnStart = !!a.loopOnStart;
     const loopDurationSec = Math.max(0, Math.floor(+a.loopOnStartFor || 0));
     const loopDurationStr = loopDurationSec ? fmt(loopDurationSec) : '';
+    const footnoteLabelValue = escapeAttr(typeof a.footnoteLabel === 'string' ? a.footnoteLabel.toUpperCase() : '');
+    const footnoteTextValue = escapeAttr(typeof a.footnoteText === 'string' ? a.footnoteText : '');
     row.innerHTML = `
       <div class="row hdr" style="gap:10px;align-items:center;flex-wrap:wrap">
         <label style="flex:2;min-width:180px">Label
@@ -3207,6 +3221,17 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
         </label>
         <span class="muted" style="flex:1 1 auto;min-width:200px">Auto-play this cue when a treatment activates or loop it on Start. Add treatments below to populate the lists.</span>
       </div>
+      <div class="row footnote" style="gap:10px;align-items:flex-start;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;flex-direction:column;gap:4px;flex:0 0 120px">
+          <span>Footnote letter</span>
+          <input class="a-footnote-label" type="text" value="${footnoteLabelValue}" placeholder="A" maxlength="4">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:220px">
+          <span>Footnote text</span>
+          <input class="a-footnote-text" type="text" value="${footnoteTextValue}" placeholder="Shown under play button">
+        </label>
+        <span class="muted" style="flex:1 1 100%;font-size:12px">Footnote appears beneath the audio button on the play screen.</span>
+      </div>
     `;
 
     const labelEl = row.querySelector('.a-label');
@@ -3221,6 +3246,8 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const durationEl = row.querySelector('.a-loop-duration');
     const startEl = row.querySelector('.a-start-trigger');
     const stopEl = row.querySelector('.a-loop-stop');
+    const footnoteLabelEl = row.querySelector('.a-footnote-label');
+    const footnoteTextEl = row.querySelector('.a-footnote-text');
 
     if (autoLoopEl){
       autoLoopEl.addEventListener('change', ()=>{
@@ -3302,6 +3329,43 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     }
 
     populateAudioLibraryOptions(libEl, a);
+
+    if (footnoteLabelEl){
+      footnoteLabelEl.addEventListener('input', ()=>{
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        const raw = footnoteLabelEl.value || '';
+        const normalized = raw.replace(/\s+/g,'').toUpperCase();
+        if (raw !== normalized){
+          const pos = footnoteLabelEl.selectionStart;
+          footnoteLabelEl.value = normalized;
+          if (typeof pos === 'number' && typeof footnoteLabelEl.setSelectionRange === 'function'){
+            const next = Math.min(normalized.length, pos);
+            try{ footnoteLabelEl.setSelectionRange(next, next); }catch{}
+          }
+        }
+        if (normalized){
+          rec.footnoteLabel = normalized;
+        } else {
+          delete rec.footnoteLabel;
+        }
+        save();
+      });
+    }
+
+    if (footnoteTextEl){
+      footnoteTextEl.addEventListener('input', ()=>{
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        const text = (footnoteTextEl.value || '').trim();
+        if (text){
+          rec.footnoteText = text;
+        } else {
+          delete rec.footnoteText;
+        }
+        save();
+      });
+    }
 
     // Update label live
     labelEl.addEventListener('input', ()=>{
@@ -3408,6 +3472,18 @@ function renderAudioButtons(){
     a.bg    = a.bg    || '#fafafa';
     a.bgOn  = a.bgOn  || '#c7f7c7';
     a.flashOn = !!a.flashOn;
+    const footnoteLabel = typeof a.footnoteLabel === 'string' ? a.footnoteLabel.trim().toUpperCase() : '';
+    const footnoteText = typeof a.footnoteText === 'string' ? a.footnoteText.trim() : '';
+    if (footnoteLabel){
+      a.footnoteLabel = footnoteLabel;
+    } else {
+      delete a.footnoteLabel;
+    }
+    if (footnoteText){
+      a.footnoteText = footnoteText;
+    } else {
+      delete a.footnoteText;
+    }
 
     const btn = document.createElement('button');
     btn.className = 'btn';
@@ -3443,7 +3519,29 @@ function renderAudioButtons(){
       btn.style.background = a.bg;
     }
 
-    host.appendChild(btn);
+    const wrap = document.createElement('div');
+    wrap.className = 'audio-btn-wrap';
+    wrap.appendChild(btn);
+
+    if (footnoteLabel || footnoteText){
+      const note = document.createElement('div');
+      note.className = 'audio-footnote';
+      if (footnoteLabel){
+        const labelEl = document.createElement('strong');
+        labelEl.className = 'audio-footnote-label';
+        labelEl.textContent = footnoteLabel;
+        note.appendChild(labelEl);
+      }
+      if (footnoteText){
+        const textEl = document.createElement('span');
+        textEl.className = 'audio-footnote-text';
+        textEl.textContent = footnoteText;
+        note.appendChild(textEl);
+      }
+      wrap.appendChild(note);
+    }
+
+    host.appendChild(wrap);
   });
 }
 function updateAudioButtonStates(){
@@ -3769,15 +3867,27 @@ function save(options){
   scenario.opqrst.s = byId('o-s')?.value || scenario.opqrst.s;
   scenario.opqrst.t = byId('o-t')?.value || scenario.opqrst.t;
 
-   // Audio cues (list) — keep existing files; only update labels from UI
+  // Audio cues (list) — keep existing files; only update labels from UI
   {
     const host = byId('audio-list');
     if (host){
       const rows = Array.from(host.querySelectorAll('.audio-row'));
       rows.forEach((row,i)=>{
         const label = row.querySelector('.a-label')?.value?.trim();
+        const footnoteLabel = row.querySelector('.a-footnote-label')?.value?.trim();
+        const footnoteText = row.querySelector('.a-footnote-text')?.value?.trim();
         if (scenario.audios[i]){
           scenario.audios[i].label = label || scenario.audios[i].label || `Audio ${i+1}`;
+          if (footnoteLabel){
+            scenario.audios[i].footnoteLabel = footnoteLabel.toUpperCase();
+          } else {
+            delete scenario.audios[i].footnoteLabel;
+          }
+          if (footnoteText){
+            scenario.audios[i].footnoteText = footnoteText;
+          } else {
+            delete scenario.audios[i].footnoteText;
+          }
         }
       });
     }
