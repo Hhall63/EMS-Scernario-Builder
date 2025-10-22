@@ -330,6 +330,11 @@ details.builder-section summary > .display-toggle{margin-left:auto}
 #p-physical ul{margin:6px 0 0 18px;padding:0}
 #p-physical li{margin:2px 0}
 
+/* General impression bullets to match physical findings */
+#p-gi{font-size:16px;color:#111}
+#p-gi ul{margin:6px 0 0 18px;padding:0}
+#p-gi li{margin:2px 0}
+
 /* APGAR horizontal layout */
 #p-apgar-wrap .apgar-table-card{
   border:1px solid var(--b);
@@ -2733,7 +2738,11 @@ function renderStatic(){
   // Dispatch, GI, AVPU/NOI/C-spine
   const pd=byId('p-dispatch'), pg=byId('p-gi'), pa=byId('p-ancillary');
   if (pd) pd.textContent=scenario.text.dispatch||'';
-  if (pg) pg.textContent=scenario.text.gi||'';
+  if (pg){
+    const raw = scenario.text.gi || '';
+    const items = raw.split(/\n+|[.;]\s+/).map(s=>s.trim()).filter(Boolean);
+    pg.innerHTML = items.length ? `<ul>${items.map(x=>`<li>${x}</li>`).join('')}</ul>` : '—';
+  }
   if (pa) pa.innerHTML = `<div><strong>AVPU:</strong> ${scenario.text.avpu||''}</div>
     <div><strong>NOI/MOI:</strong> ${scenario.text.noi||''}</div>
     <div><strong>C-spine:</strong> ${scenario.text.cspine||''}</div>`;
