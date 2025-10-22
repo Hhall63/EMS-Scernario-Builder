@@ -165,6 +165,10 @@
           "bg": { "$ref": "#/$defs/color" },
           "bgOn": { "$ref": "#/$defs/color" },
           "flashOn": { "type": "boolean" },
+          "loopOnStart": { "type": "boolean" },
+          "loopOnStartFor": { "type": "integer", "minimum": 1 },
+          "loopStopOnTreatment": { "$ref": "#/$defs/id" },
+          "playOnTreatment": { "$ref": "#/$defs/id" },
           "name": { "type": "string" }
         }
       }
