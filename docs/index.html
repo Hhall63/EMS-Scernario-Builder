@@ -1589,6 +1589,42 @@ function populateAudioLibraryOptions(selectEl, audio){
   if (!current) selectEl.value = '';
 }
 
+function populateStopTreatmentOptions(selectEl, selectedId){
+  if (!selectEl) return;
+  selectEl.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'None';
+  selectEl.appendChild(none);
+
+  const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
+  let hasSelection = false;
+  list.forEach(tx => {
+    if (!tx || !tx.id) return;
+    const opt = document.createElement('option');
+    opt.value = tx.id;
+    const label = tx.label && tx.label !== tx.id
+      ? `${tx.label} (${tx.id})`
+      : tx.id;
+    opt.textContent = label;
+    if (tx.id === selectedId){
+      opt.selected = true;
+      hasSelection = true;
+    }
+    selectEl.appendChild(opt);
+  });
+
+  if (selectedId && !hasSelection){
+    const orphan = document.createElement('option');
+    orphan.value = selectedId;
+    orphan.textContent = `${selectedId} (missing)`;
+    orphan.selected = true;
+    selectEl.appendChild(orphan);
+  }
+
+  if (!selectedId) selectEl.value = '';
+}
+
 function getAudioGitHubContexts(){
   const contexts = [];
   try{
@@ -1856,6 +1892,10 @@ let scenario = JSON.parse(JSON.stringify(DEFAULT_SCENARIO));
 let currentAudioIdx = -1; // which audio button is currently playing (-1 = none)
 let running=false, interval=null, tLeft=0, elapsed=0;
 let audioLoop = false;
+let autoLoopTimer = null;
+let autoLoopIndex = -1;
+let autoLoopRestore = null;
+let autoLoopStopTxId = null;
 let vitals={}, baseline={}, activeTx={}, decayTx={};
 let treatmentLogEntries=[];
 let appliedInjects=[], firedInject=new Set();
@@ -1867,6 +1907,146 @@ const START_BEEP_FREQ = 1000;
 const END_BEEP_FREQ = 650;
 let lastActiveInjectKey = null;
 let lastActiveInjectRef = null;
+
+function setLoopButtonState(isOn){
+  const btn = byId('p-audio-loop');
+  if (btn){
+    btn.textContent = isOn ? 'Loop: On' : 'Loop: Off';
+    btn.classList.toggle('success', isOn);
+  }
+}
+
+function clearAutoLoopTimer(restore){
+  if (autoLoopTimer){
+    clearTimeout(autoLoopTimer);
+    autoLoopTimer = null;
+  }
+  autoLoopIndex = -1;
+  autoLoopStopTxId = null;
+  if (restore){
+    const el = byId('p-audio');
+    if (autoLoopRestore !== null){
+      audioLoop = autoLoopRestore;
+    }
+    autoLoopRestore = null;
+    if (el) el.loop = audioLoop;
+    setLoopButtonState(audioLoop);
+  }
+}
+
+function finishAutoLoop(index){
+  if (autoLoopIndex !== index){
+    clearAutoLoopTimer(false);
+    return;
+  }
+  clearAutoLoopTimer(false);
+  const el = byId('p-audio');
+  const wasAutoIdx = (currentAudioIdx === index);
+  if (el && wasAutoIdx){
+    try{ el.pause(); }catch{}
+    el.currentTime = 0;
+  }
+  if (wasAutoIdx){
+    currentAudioIdx = -1;
+  }
+  updateAudioButtonStates();
+  if (autoLoopRestore !== null){
+    audioLoop = autoLoopRestore;
+    autoLoopRestore = null;
+  }
+  if (el) el.loop = audioLoop;
+  setLoopButtonState(audioLoop);
+}
+
+function maybeStartAutoLoop(){
+  clearAutoLoopTimer(true);
+  const el = byId('p-audio');
+  if (!el) return;
+  const list = Array.isArray(scenario.audios) ? scenario.audios : [];
+  for (let i = 0; i < list.length; i += 1){
+    const rec = list[i];
+    if (!rec || !rec.loopOnStart) continue;
+    const duration = Math.max(0, Math.floor(+rec.loopOnStartFor || 0));
+    const stopTxId = (rec.loopStopOnTreatment || '').trim();
+    const hasDuration = duration > 0;
+    const src = getAudioSrc(rec);
+    if (!src || (!hasDuration && !stopTxId)) continue;
+
+    autoLoopRestore = audioLoop;
+    audioLoop = true;
+    setLoopButtonState(true);
+    autoLoopIndex = i;
+    autoLoopStopTxId = stopTxId || null;
+    autoLoopTimer = hasDuration ? setTimeout(()=>finishAutoLoop(i), duration * 1000) : null;
+
+    try{
+      if (el.src !== src) el.src = src;
+      el.loop = true;
+      el.currentTime = 0;
+      currentAudioIdx = i;
+      updateAudioButtonStates();
+      const playResult = el.play();
+      if (playResult && typeof playResult.catch === 'function'){
+        playResult.catch(err => {
+          console.warn('Auto-start audio play failed:', err);
+          alert('Browser blocked auto-playing audio. Click the audio button after interacting with the page.');
+          if (currentAudioIdx === i){
+            currentAudioIdx = -1;
+            updateAudioButtonStates();
+          }
+          try{ el.pause(); }catch{}
+          el.currentTime = 0;
+          clearAutoLoopTimer(true);
+        });
+      }
+    }catch(err){
+      console.warn('Auto-start audio play failed:', err);
+      alert('Browser blocked auto-playing audio. Click the audio button after interacting with the page.');
+      if (currentAudioIdx === i){
+        currentAudioIdx = -1;
+        updateAudioButtonStates();
+      }
+      try{ el.pause(); }catch{}
+      el.currentTime = 0;
+      clearAutoLoopTimer(true);
+    }
+    return;
+  }
+}
+
+function findTreatmentLabelById(id){
+  if (!id) return '';
+  const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
+  const match = list.find(tx => tx && tx.id === id);
+  return (match && (match.label || match.id)) || '';
+}
+
+function describeAudioAutoLoop(a){
+  if (!a || !a.loopOnStart) return '';
+  const parts = [];
+  const seconds = Math.max(0, Math.floor(+a.loopOnStartFor || 0));
+  if (seconds > 0){
+    parts.push(`for ${fmt(seconds)}`);
+  }
+  const stopId = (a.loopStopOnTreatment || '').trim();
+  if (stopId){
+    const label = findTreatmentLabelById(stopId) || stopId;
+    parts.push(`until ${label} is activated`);
+  }
+  if (!parts.length) return '';
+  return `Loops on Start ${parts.join(' and ')}.`;
+}
+
+function maybeStopAutoLoopForTreatment(txId){
+  if (!txId) return;
+  if (!autoLoopStopTxId || autoLoopStopTxId !== txId) return;
+  const index = autoLoopIndex;
+  if (index >= 0){
+    finishAutoLoop(index);
+  } else {
+    clearAutoLoopTimer(true);
+  }
+}
 
 function ensureTxState(id){
   activeTx[id] = activeTx[id] || { on:false, done:false };
@@ -1901,6 +2081,7 @@ function setTreatmentOn(id, label){
   state.done = false;
   if (!wasOn){
     recordTreatmentStart(id, label);
+    maybeStopAutoLoopForTreatment(id);
   }
   return !wasOn;
 }
@@ -2116,6 +2297,7 @@ function resetRun(){
   lastActiveInjectRef = null;
 
   // reset audio playback state
+  clearAutoLoopTimer(true);
   const audioEl = byId('p-audio');
   if (audioEl){
     try{ audioEl.pause(); }catch{}
@@ -2124,18 +2306,14 @@ function resetRun(){
   }
   currentAudioIdx = -1;
   audioLoop = false;
-  const loopBtn = byId('p-audio-loop');
-  if (loopBtn){
-    loopBtn.textContent = 'Loop: Off';
-    loopBtn.classList.remove('success');
-  }
+  setLoopButtonState(false);
 
   closeUrgent();
   buildTxButtons();
   renderAll();
   if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
 }
-function start(){ if (running) return; running=true; interval=setInterval(tick,1000); }
+function start(){ if (running) return; running=true; maybeStartAutoLoop(); interval=setInterval(tick,1000); }
 function pause(){ running=false; if(interval){ clearInterval(interval); interval=null; } }
 function tick(){
   if (tLeft<=0){ pause(); endBell(); return; }
@@ -2860,6 +3038,9 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     row.dataset.id = a.id || `aud${i+1}`;
     if (!a.id) a.id = row.dataset.id;
     const displayName = formatAudioDisplayName(a) || 'No file chosen';
+    const loopOnStart = !!a.loopOnStart;
+    const loopDurationSec = Math.max(0, Math.floor(+a.loopOnStartFor || 0));
+    const loopDurationStr = loopDurationSec ? fmt(loopDurationSec) : '';
     row.innerHTML = `
       <div class="row hdr" style="gap:10px;align-items:center;flex-wrap:wrap">
         <label style="flex:2;min-width:180px">Label
@@ -2890,6 +3071,21 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
 
         <button type="button" class="btn danger del">Delete</button>
       </div>
+      <div class="row auto" style="gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;flex:0 0 auto">
+          <input class="a-auto-loop" type="checkbox" ${loopOnStart ? 'checked' : ''}>
+          <span>Loop automatically on Start</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;flex:0 0 auto" title="Accepts mm:ss or total seconds">
+          <span>Duration</span>
+          <input class="a-loop-duration" type="text" value="${loopDurationStr}" placeholder="mm:ss" style="width:80px">
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;flex:0 1 260px">
+          <span>Stop when treatment</span>
+          <select class="a-loop-stop" title="Choose a treatment that stops this auto-loop when activated"></select>
+        </label>
+        <span class="muted" style="flex:1 1 auto;min-width:200px">Audio loops after Start until the duration expires or the selected treatment activates.</span>
+      </div>
     `;
 
     const labelEl = row.querySelector('.a-label');
@@ -2900,6 +3096,65 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const bgEl    = row.querySelector('.a-bg');
     const bgOnEl  = row.querySelector('.a-bg-on');
     const flashEl = row.querySelector('.a-flash-on');
+    const autoLoopEl = row.querySelector('.a-auto-loop');
+    const durationEl = row.querySelector('.a-loop-duration');
+    const stopEl = row.querySelector('.a-loop-stop');
+
+    if (autoLoopEl){
+      autoLoopEl.addEventListener('change', ()=>{
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        rec.loopOnStart = !!autoLoopEl.checked;
+        const hasDuration = +rec.loopOnStartFor > 0;
+        const hasStopTx = !!rec.loopStopOnTreatment;
+        if (rec.loopOnStart && !hasDuration && !hasStopTx){
+          rec.loopOnStartFor = 60;
+          if (durationEl){
+            durationEl.value = fmt(rec.loopOnStartFor);
+          }
+        }
+        save();
+      });
+    }
+
+    if (durationEl){
+      const syncDuration = ()=>{
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        const seconds = parseTimeFlexible(durationEl.value);
+        if (seconds > 0){
+          rec.loopOnStartFor = seconds;
+          durationEl.value = fmt(seconds);
+        } else {
+          delete rec.loopOnStartFor;
+          durationEl.value = '';
+        }
+        save();
+      };
+      durationEl.addEventListener('change', syncDuration);
+      durationEl.addEventListener('blur', syncDuration);
+    }
+
+    if (stopEl){
+      populateStopTreatmentOptions(stopEl, (a.loopStopOnTreatment || '').trim() || '');
+      stopEl.addEventListener('change', ()=>{
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        const choice = (stopEl.value || '').trim();
+        if (choice){
+          rec.loopStopOnTreatment = choice;
+        } else {
+          delete rec.loopStopOnTreatment;
+        }
+        if (rec.loopOnStart && !(+rec.loopOnStartFor > 0) && !rec.loopStopOnTreatment){
+          rec.loopOnStartFor = 60;
+          if (durationEl){
+            durationEl.value = fmt(rec.loopOnStartFor);
+          }
+        }
+        save();
+      });
+    }
 
     populateAudioLibraryOptions(libEl, a);
 
@@ -3017,6 +3272,11 @@ function renderAudioButtons(){
       btn.classList.add('muted');
       btn.disabled = true;
       btn.title = 'Attach audio in Build';
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('muted');
+      const desc = describeAudioAutoLoop(a);
+      btn.title = desc || '';
     }
 
     // set CSS variables for flash animation (reuse treatment style)
@@ -3058,7 +3318,8 @@ function updateAudioButtonStates(){
     } else {
       btn.disabled = false;
       btn.classList.remove('muted');
-      btn.title = '';
+      const desc = describeAudioAutoLoop(a);
+      btn.title = desc || '';
     }
 
     // ensure vars in case colors changed
@@ -3377,6 +3638,14 @@ function save(options){
     }
   }
 
+  document.querySelectorAll('#audio-list .audio-row').forEach((row, idx) => {
+    const select = row.querySelector('.a-loop-stop');
+    if (!select) return;
+    const rec = (scenario.audios || [])[idx];
+    const selected = (rec && rec.loopStopOnTreatment) ? String(rec.loopStopOnTreatment).trim() : '';
+    populateStopTreatmentOptions(select, selected);
+  });
+
   // Display toggles
   scenario.displayOnPlay = scenario.displayOnPlay || {};
   document.querySelectorAll('input[data-display-key]').forEach(cb=>{
@@ -3484,6 +3753,7 @@ if (audioBtnsHost){
     const rec = (scenario.audios||[])[idx];
     const el  = byId('p-audio');
     if (!rec || !getAudioSrc(rec) || !el){ alert('No audio file set for this button.'); return; }
+    clearAutoLoopTimer(true);
     if (el.src !== getAudioSrc(rec)) el.src = getAudioSrc(rec);
     el.loop = audioLoop;
     try{
@@ -3499,9 +3769,13 @@ if (audioBtnsHost){
 }
   // When audio naturally ends, reset button states so flashing stops
   safeOn(byId('p-audio'), 'ended', () => {
-    currentAudioIdx = -1;
     const el = byId('p-audio');
+    if (el && el.loop){
+      return;
+    }
+    currentAudioIdx = -1;
     if (el) el.currentTime = 0;
+    clearAutoLoopTimer(true);
     updateAudioButtonStates();
   });
 
@@ -3509,6 +3783,7 @@ if (audioBtnsHost){
   safeOn(byId('p-audio-stop'), 'click', () => {
     const el = byId('p-audio');
     if (!el) return;
+    clearAutoLoopTimer(true);
     el.pause();
     el.currentTime = 0;
     currentAudioIdx = -1;
@@ -3520,11 +3795,10 @@ if (audioBtnsHost){
     audioLoop = !audioLoop;
     const el = byId('p-audio');
     if (el) el.loop = audioLoop;
-    const btn = byId('p-audio-loop');
-    if (btn) {
-        btn.textContent = audioLoop ? 'Loop: On' : 'Loop: Off';
-        btn.classList.toggle('success', audioLoop);
-  }
+    setLoopButtonState(audioLoop);
+    if (autoLoopTimer || autoLoopRestore !== null){
+      autoLoopRestore = audioLoop;
+    }
 });
 
 safeOn(byId('urgent-close'),'click',closeUrgent);
@@ -3541,7 +3815,8 @@ safeOn(byId('add-audio'),'click',()=>{
     name:'',
     bg:'#fafafa',
     bgOn:'#c7f7c7',
-    flashOn:false
+    flashOn:false,
+    loopOnStart:false
   });
   save();
   drawAudioEditor();
