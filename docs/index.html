@@ -4774,7 +4774,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const playPanel = document.querySelector('#play .panel .content'); if(!playPanel) return;
     const h3s = Array.from(playPanel.querySelectorAll('h3'));
     const firstMonitorH3 = h3s.find(h3 => h3.textContent.trim().toLowerCase()==='monitor' && h3.nextElementSibling && h3.nextElementSibling.classList.contains('monitor'));
-    if (firstMonitorH3) firstMonitorH3.textContent = "Mom's Vital Signs";
+    if (firstMonitorH3) firstMonitorH3.textContent = "Patient Vital Signs";
   }
 
   function mountPlayBlocks(){
