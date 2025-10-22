@@ -601,9 +601,10 @@ header .title{
         </summary>
         <div class="section-body">
           <div class="help">
-            Add buttons that appear in Play mode. Upload or pick a sound, then use the
-            auto-loop controls to start it when the run begins. Provide a duration,
-            choose a treatment that ends the loop, or set both so the first condition wins.
+            Add buttons that appear in Play mode. Upload or pick a sound, then choose
+            whether it should auto-play when a treatment activates or loop when the run
+            begins. Provide a duration, choose a treatment that ends the loop, or set both
+            so the first condition wins.
           </div>
           <div id="audio-list"></div>
           <div class="row">
@@ -1616,8 +1617,16 @@ function populateAudioLibraryOptions(selectEl, audio){
   if (!current) selectEl.value = '';
 }
 
-function populateStopTreatmentOptions(selectEl, selectedId){
+function populateTreatmentOptions(selectEl, selectedId, options={}){
   if (!selectEl) return;
+  const config = {
+    noneLabel: 'None',
+    emptyLabel: 'None (add treatments first)',
+    enabledTitle: '',
+    disabledTitle: 'Add treatments in the section below to enable this list.',
+    ...options
+  };
+
   selectEl.innerHTML = '';
   const list = Array.isArray(scenario.treatments) ? scenario.treatments : [];
   const hasTreatments = list.length > 0;
@@ -1625,16 +1634,16 @@ function populateStopTreatmentOptions(selectEl, selectedId){
   const none = document.createElement('option');
   none.value = '';
   none.textContent = hasTreatments
-    ? 'None'
-    : 'None (add treatments first)';
+    ? config.noneLabel
+    : config.emptyLabel;
   selectEl.appendChild(none);
 
   if (!hasTreatments && !selectedId){
     selectEl.disabled = true;
-    selectEl.title = 'Add treatments in the section below to enable this list.';
+    if (config.disabledTitle) selectEl.title = config.disabledTitle;
   } else {
     selectEl.disabled = false;
-    selectEl.title = 'Choose a treatment that stops this auto-loop when activated';
+    if (config.enabledTitle) selectEl.title = config.enabledTitle;
   }
 
   let hasSelection = false;
@@ -1998,6 +2007,44 @@ function finishAutoLoop(index){
   setLoopButtonState(audioLoop);
 }
 
+async function playAudioIndex(idx, options={}){
+  const opts = {
+    showAlertOnMissing: false,
+    skipAutoLoopClear: false,
+    ...options
+  };
+  const list = Array.isArray(scenario.audios) ? scenario.audios : [];
+  const rec = list[idx];
+  const el = byId('p-audio');
+  const src = rec ? getAudioSrc(rec) : '';
+  if (!rec || !src || !el){
+    if (opts.showAlertOnMissing){
+      alert('No audio file set for this button.');
+    }
+    return false;
+  }
+
+  if (!opts.skipAutoLoopClear){
+    clearAutoLoopTimer(true);
+  }
+
+  if (el.src !== src) el.src = src;
+  el.loop = audioLoop;
+  try{
+    el.currentTime = 0;
+    await el.play();
+    currentAudioIdx = idx;
+    updateAudioButtonStates();
+    return true;
+  }catch(err){
+    console.warn('Audio play failed:', err);
+    if (opts.showAlertOnMissing){
+      alert('Browser blocked autoplay. Click once on the page, then try again.');
+    }
+    return false;
+  }
+}
+
 function maybeStartAutoLoop(){
   clearAutoLoopTimer(true);
   const el = byId('p-audio');
@@ -2061,20 +2108,34 @@ function findTreatmentLabelById(id){
   return (match && (match.label || match.id)) || '';
 }
 
-function describeAudioAutoLoop(a){
-  if (!a || !a.loopOnStart) return '';
+function describeAudioAutomation(a){
+  if (!a) return '';
   const parts = [];
-  const seconds = Math.max(0, Math.floor(+a.loopOnStartFor || 0));
-  if (seconds > 0){
-    parts.push(`for ${fmt(seconds)}`);
+
+  const startId = (a.playOnTreatment || '').trim();
+  if (startId){
+    const label = findTreatmentLabelById(startId) || startId;
+    parts.push(`Auto-plays when ${label} is activated.`);
   }
-  const stopId = (a.loopStopOnTreatment || '').trim();
-  if (stopId){
-    const label = findTreatmentLabelById(stopId) || stopId;
-    parts.push(`until ${label} is activated`);
+
+  if (a.loopOnStart){
+    const details = [];
+    const seconds = Math.max(0, Math.floor(+a.loopOnStartFor || 0));
+    if (seconds > 0){
+      details.push(`for ${fmt(seconds)}`);
+    }
+    const stopId = (a.loopStopOnTreatment || '').trim();
+    if (stopId){
+      const label = findTreatmentLabelById(stopId) || stopId;
+      details.push(`until ${label} is activated`);
+    }
+    const loopText = details.length
+      ? `Loops on Start ${details.join(' and ')}.`
+      : 'Loops on Start.';
+    parts.push(loopText);
   }
-  if (!parts.length) return '';
-  return `Loops on Start ${parts.join(' and ')}.`;
+
+  return parts.join(' ').trim();
 }
 
 function maybeStopAutoLoopForTreatment(txId){
@@ -2085,6 +2146,21 @@ function maybeStopAutoLoopForTreatment(txId){
     finishAutoLoop(index);
   } else {
     clearAutoLoopTimer(true);
+  }
+}
+
+function maybeStartAudioForTreatment(txId){
+  if (!txId) return;
+  const list = Array.isArray(scenario.audios) ? scenario.audios : [];
+  for (let i = 0; i < list.length; i += 1){
+    const rec = list[i];
+    if (!rec) continue;
+    const triggerId = (rec.playOnTreatment || '').trim();
+    if (!triggerId) continue;
+    if (triggerId === txId){
+      playAudioIndex(i, { showAlertOnMissing:false });
+      break;
+    }
   }
 }
 
@@ -2122,6 +2198,7 @@ function setTreatmentOn(id, label){
   if (!wasOn){
     recordTreatmentStart(id, label);
     maybeStopAutoLoopForTreatment(id);
+    maybeStartAudioForTreatment(id);
   }
   return !wasOn;
 }
@@ -3121,10 +3198,14 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
           <input class="a-loop-duration" type="text" value="${loopDurationStr}" placeholder="mm:ss" style="width:80px">
         </label>
         <label style="display:flex;align-items:center;gap:6px;flex:0 1 260px">
+          <span>Start when treatment activates</span>
+          <select class="a-start-trigger" title="Choose a treatment that starts this audio automatically"></select>
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;flex:0 1 260px">
           <span>Stop when treatment activates</span>
           <select class="a-loop-stop" title="Choose a treatment that stops this auto-loop when activated"></select>
         </label>
-        <span class="muted" style="flex:1 1 auto;min-width:200px">Audio loops after Start until the duration expires or the selected treatment activates. Add treatments below to populate this list.</span>
+        <span class="muted" style="flex:1 1 auto;min-width:200px">Auto-play this cue when a treatment activates or loop it on Start. Add treatments below to populate the lists.</span>
       </div>
     `;
 
@@ -3138,6 +3219,7 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
     const flashEl = row.querySelector('.a-flash-on');
     const autoLoopEl = row.querySelector('.a-auto-loop');
     const durationEl = row.querySelector('.a-loop-duration');
+    const startEl = row.querySelector('.a-start-trigger');
     const stopEl = row.querySelector('.a-loop-stop');
 
     if (autoLoopEl){
@@ -3175,8 +3257,31 @@ q('.del').onclick=()=>{ scenario.treatments.splice(i,1); save(); };
       durationEl.addEventListener('blur', syncDuration);
     }
 
+    if (startEl){
+      populateTreatmentOptions(startEl, (a.playOnTreatment || '').trim() || '', {
+        noneLabel: 'Manual only',
+        emptyLabel: 'Manual only (add treatments first)',
+        enabledTitle: 'Choose a treatment that starts this audio automatically',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
+      startEl.addEventListener('change', ()=>{
+        const rec = (scenario.audios||[])[i];
+        if (!rec) return;
+        const choice = (startEl.value || '').trim();
+        if (choice){
+          rec.playOnTreatment = choice;
+        } else {
+          delete rec.playOnTreatment;
+        }
+        save();
+      });
+    }
+
     if (stopEl){
-      populateStopTreatmentOptions(stopEl, (a.loopStopOnTreatment || '').trim() || '');
+      populateTreatmentOptions(stopEl, (a.loopStopOnTreatment || '').trim() || '', {
+        enabledTitle: 'Choose a treatment that stops this auto-loop when activated',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
       stopEl.addEventListener('change', ()=>{
         const rec = (scenario.audios||[])[i];
         if (!rec) return;
@@ -3315,7 +3420,7 @@ function renderAudioButtons(){
     } else {
       btn.disabled = false;
       btn.classList.remove('muted');
-      const desc = describeAudioAutoLoop(a);
+      const desc = describeAudioAutomation(a);
       btn.title = desc || '';
     }
 
@@ -3358,7 +3463,7 @@ function updateAudioButtonStates(){
     } else {
       btn.disabled = false;
       btn.classList.remove('muted');
-      const desc = describeAudioAutoLoop(a);
+      const desc = describeAudioAutomation(a);
       btn.title = desc || '';
     }
 
@@ -3679,11 +3784,26 @@ function save(options){
   }
 
   document.querySelectorAll('#audio-list .audio-row').forEach((row, idx) => {
-    const select = row.querySelector('.a-loop-stop');
-    if (!select) return;
     const rec = (scenario.audios || [])[idx];
-    const selected = (rec && rec.loopStopOnTreatment) ? String(rec.loopStopOnTreatment).trim() : '';
-    populateStopTreatmentOptions(select, selected);
+    const stopSelect = row.querySelector('.a-loop-stop');
+    if (stopSelect){
+      const selectedStop = (rec && rec.loopStopOnTreatment) ? String(rec.loopStopOnTreatment).trim() : '';
+      populateTreatmentOptions(stopSelect, selectedStop, {
+        enabledTitle: 'Choose a treatment that stops this auto-loop when activated',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
+    }
+
+    const startSelect = row.querySelector('.a-start-trigger');
+    if (startSelect){
+      const selectedStart = (rec && rec.playOnTreatment) ? String(rec.playOnTreatment).trim() : '';
+      populateTreatmentOptions(startSelect, selectedStart, {
+        noneLabel: 'Manual only',
+        emptyLabel: 'Manual only (add treatments first)',
+        enabledTitle: 'Choose a treatment that starts this audio automatically',
+        disabledTitle: 'Add treatments in the section below to enable this list.'
+      });
+    }
   });
 
   // Display toggles
@@ -3797,21 +3917,7 @@ if (audioBtnsHost){
     const b = e.target.closest('button[data-audio]');
     if (!b) return;
     const idx = +b.dataset.audio;
-    const rec = (scenario.audios||[])[idx];
-    const el  = byId('p-audio');
-    if (!rec || !getAudioSrc(rec) || !el){ alert('No audio file set for this button.'); return; }
-    clearAutoLoopTimer(true);
-    if (el.src !== getAudioSrc(rec)) el.src = getAudioSrc(rec);
-    el.loop = audioLoop;
-    try{
-      el.currentTime = 0;
-      await el.play();
-      currentAudioIdx = idx;
-      updateAudioButtonStates();
-    }catch(err){
-      console.warn('Audio play failed:', err);
-      alert('Browser blocked autoplay. Click once on the page, then try again.');
-    }
+    await playAudioIndex(idx, { showAlertOnMissing:true });
   });
 }
   // When audio naturally ends, reset button states so flashing stops

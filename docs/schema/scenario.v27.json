@@ -168,6 +168,7 @@
           "loopOnStart": { "type": "boolean" },
           "loopOnStartFor": { "type": "integer", "minimum": 1 },
           "loopStopOnTreatment": { "$ref": "#/$defs/id" },
+          "playOnTreatment": { "$ref": "#/$defs/id" },
           "name": { "type": "string" }
         }
       }
