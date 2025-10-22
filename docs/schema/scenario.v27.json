@@ -65,6 +65,13 @@
       "additionalProperties": false,
       "properties": { "als": { "type": "boolean" } }
     },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "promptsEnabled": { "type": "boolean" }
+      }
+    },
     "timing": {
       "type": "object",
       "additionalProperties": false,
@@ -212,6 +219,20 @@
         }
       }
     },
-    "prompts": { "type": "array" }
+    "prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id","time","title","content"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "time": { "type": "integer", "minimum": 0 },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "enabled": { "type": "boolean" }
+        }
+      }
+    }
   }
 }
