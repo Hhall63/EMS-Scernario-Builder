@@ -1,0 +1,224 @@
+{
+  "meta": {
+    "title": "AED Voice Prompt Drill",
+    "version": 27,
+    "author": "Scenario Team"
+  },
+  "text": {
+    "dispatch": "Respond to the simulation lab for an unresponsive adult who collapsed during training. You are requested to perform high-performance CPR with AED integration.",
+    "gi": "The manikin is supine on the floor. Bystanders report a sudden collapse. Chest rise is absent and there is no response to verbal or painful stimuli.",
+    "avpu": "Unresponsive",
+    "noi": "Medical - cardiac arrest",
+    "cspine": "No traumatic mechanism identified."
+  },
+  "flags": {
+    "als": true
+  },
+  "features": {
+    "promptsEnabled": true
+  },
+  "timing": {
+    "minutes": 10
+  },
+  "injects": [
+    {
+      "id": "inj-aed-boot",
+      "t": 0,
+      "name": "AED powered on and pads applied",
+      "dur": 15,
+      "hideAfter": 15,
+      "triggers": [],
+      "bg": "#0b3954"
+    },
+    {
+      "id": "inj-aed-analyze",
+      "t": 18,
+      "name": "AED analyzing rhythm",
+      "dur": 5,
+      "hideAfter": 5,
+      "triggers": [],
+      "bg": "#f2c14e"
+    },
+    {
+      "id": "inj-aed-charging",
+      "t": 23,
+      "name": "Shock advised, AED charging",
+      "dur": 5,
+      "hideAfter": 5,
+      "triggers": [],
+      "bg": "#f78154"
+    },
+    {
+      "id": "inj-aed-shock",
+      "t": 29,
+      "name": "Shock delivered, resume compressions",
+      "dur": 30,
+      "hideAfter": 30,
+      "triggers": [],
+      "bg": "#ed553b"
+    },
+    {
+      "id": "inj-aed-cycle-one",
+      "t": 59,
+      "name": "First CPR coaching reminder",
+      "dur": 30,
+      "hideAfter": 30,
+      "triggers": [],
+      "bg": "#3caea3"
+    },
+    {
+      "id": "inj-aed-cycle-two",
+      "t": 89,
+      "name": "Second CPR coaching reminder",
+      "dur": 25,
+      "hideAfter": 25,
+      "triggers": [],
+      "bg": "#4d9de0"
+    },
+    {
+      "id": "inj-aed-prep-reanalyze",
+      "t": 114,
+      "name": "Prepare to stop for rhythm check",
+      "dur": 5,
+      "hideAfter": 5,
+      "triggers": [],
+      "bg": "#b55400"
+    },
+    {
+      "id": "inj-aed-reanalyze",
+      "t": 119,
+      "name": "AED analyzing after CPR",
+      "dur": 6,
+      "hideAfter": 6,
+      "triggers": [],
+      "bg": "#5d576b"
+    }
+  ],
+  "vitals": {
+    "hr": 0,
+    "rr": 0,
+    "spo2": 0,
+    "sbp": 0,
+    "dbp": 0,
+    "cbg": 112,
+    "skinColor": "cyanotic",
+    "skinTemp": "cool",
+    "skinMoist": "diaphoretic",
+    "hrRate": "absent",
+    "hrRhythm": "absent",
+    "hrQuality": "absent",
+    "rrRate": "absent",
+    "rrRhythm": "absent",
+    "rrQuality": "absent"
+  },
+  "sample": {
+    "s": "Patient is pulseless and apneic. No spontaneous movement.",
+    "a": "No known drug allergies per training log.",
+    "m": "Medication history unavailable for this drill.",
+    "p": "Simulated history of hypertension and hyperlipidemia.",
+    "l": "Last oral intake simulated as lunch 2 hours prior to collapse.",
+    "e": "Participant collapsed while practicing drills; AED prompts should guide the resuscitation."
+  },
+  "opqrst": {
+    "o": "Witnessed collapse during training evolution.",
+    "p": "No palliation or provocation noted in simulation notes.",
+    "q": "Sudden loss of consciousness.",
+    "r": "No radiation.",
+    "s": "CPR feedback manikin indicates 0 perfusion.",
+    "t": "Collapse occurred approximately 1 minute before EMS arrival."
+  },
+  "audios": [],
+  "treatments": [
+    {
+      "id": "tx-aed-pads",
+      "label": "Apply AED Pads",
+      "mode": "oneShot",
+      "priority": 1,
+      "bg": "#0b3954",
+      "bgOn": "#3caea3",
+      "flashOn": true
+    },
+    {
+      "id": "tx-aed-shock",
+      "label": "Deliver AED Shock",
+      "mode": "oneShot",
+      "priority": 2,
+      "bg": "#ed553b",
+      "bgOn": "#f2c14e",
+      "flashOn": true
+    },
+    {
+      "id": "tx-high-quality-cpr",
+      "label": "High-Quality CPR",
+      "mode": "toggle",
+      "priority": 3,
+      "bg": "#173f5f",
+      "bgOn": "#3caea3",
+      "flashOn": false,
+      "urgent": true,
+      "urgentMsg": "Maintain compressions at 100-120/min with full recoil."
+    }
+  ],
+  "prompts": [
+    {
+      "id": "prompt-aed-01",
+      "time": 0,
+      "title": "Power on and pad placement",
+      "content": "Unit on. Stay calm. Remove clothing from the chest. Attach pads to the patient's bare chest as shown. If needed, plug in the pads connector."
+    },
+    {
+      "id": "prompt-aed-02",
+      "time": 18,
+      "title": "Analyzing rhythm",
+      "content": "Do not touch the patient. Analyzing heart rhythm."
+    },
+    {
+      "id": "prompt-aed-03",
+      "time": 23,
+      "title": "Shock advised",
+      "content": "Shock advised. Charging."
+    },
+    {
+      "id": "prompt-aed-04",
+      "time": 25,
+      "title": "Stand clear",
+      "content": "Stand clear. Do not touch the patient. Press the flashing shock button now."
+    },
+    {
+      "id": "prompt-aed-05",
+      "time": 29,
+      "title": "Post-shock CPR",
+      "content": "Shock delivered. Begin CPR. Push hard and fast at a rate of 100 to 120 per minute. Allow full chest recoil."
+    },
+    {
+      "id": "prompt-aed-06",
+      "time": 59,
+      "title": "Continue compressions",
+      "content": "Continue CPR. Push hard and fast."
+    },
+    {
+      "id": "prompt-aed-07",
+      "time": 89,
+      "title": "Continue compressions",
+      "content": "Continue CPR. Push hard and fast."
+    },
+    {
+      "id": "prompt-aed-08",
+      "time": 114,
+      "title": "Prepare to stop",
+      "content": "Prepare to stop CPR. Do not touch the patient."
+    },
+    {
+      "id": "prompt-aed-09",
+      "time": 119,
+      "title": "Re-analyze",
+      "content": "Stop CPR. Do not touch the patient. Analyzing heart rhythm."
+    }
+  ],
+  "promptsSpeech": {
+    "autoplay": true,
+    "rate": 1,
+    "pitch": 1,
+    "volume": 1
+  }
+}

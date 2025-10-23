@@ -84,6 +84,113 @@ button.muted{opacity:.6;cursor:not-allowed}
 #audio-list .a-volume-field .a-volume-value{min-width:44px;text-align:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 
 #inject-list{display:flex;flex-direction:column;gap:12px}
+.prompt-empty{font-size:12px;color:var(--muted);margin-top:4px}
+.prompt-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  align-items:flex-start;
+  padding:14px;
+  border:1px solid var(--bb);
+  border-radius:12px;
+  background:var(--card);
+}
+.prompt-row .badge{align-self:flex-start}
+.prompt-row .prompt-field{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  flex:1 1 160px;
+  min-width:160px;
+}
+.prompt-row .prompt-field.id-field{flex:1 1 140px;max-width:200px}
+.prompt-row .prompt-field.time-field{flex:1 1 140px;max-width:200px}
+.prompt-row .prompt-field.content-field{flex:2 1 280px;min-width:220px}
+.prompt-row .prompt-field textarea{min-height:72px}
+.prompt-row .prompt-actions{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:stretch;
+}
+.prompt-row .prompt-actions .btn{min-width:90px}
+#prompt-list{display:flex;flex-direction:column;gap:12px}
+.prompt-row .label-title{font-size:12px;font-weight:600;color:#111}
+.prompt-row .switch{margin-top:18px}
+.prompt-row .prompt-enabled{flex:0 0 auto;align-self:center}
+.prompt-row .prompt-enabled .label-title{margin-bottom:0}
+.prompt-row .prompt-enabled input{margin-right:0}
+
+.prompt-play-card{
+  border:1px solid var(--bb);
+  border-radius:12px;
+  background:#fff;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.prompt-play-list{display:flex;flex-direction:column;gap:8px}
+.prompt-play-row{
+  border:1px solid var(--bb);
+  border-radius:10px;
+  padding:10px 12px;
+  background:#f9fafb;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.prompt-play-row--active{
+  border-color:var(--primary);
+  background:#eef2ff;
+  box-shadow:0 0 0 2px rgba(37,99,235,.18);
+}
+.prompt-play-row--past{opacity:.75}
+.prompt-play-meta{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:600;
+}
+.prompt-play-time{font-variant-numeric:tabular-nums}
+.prompt-play-title{flex:1 1 auto}
+.prompt-play-status{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.prompt-play-content{font-size:14px;white-space:pre-wrap;color:#111}
+.prompt-play-controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  justify-content:space-between;
+  border-bottom:1px solid var(--bb);
+  padding-bottom:8px;
+  margin-bottom:8px;
+}
+.prompt-play-controls .switch{margin:0}
+.prompt-play-controls button{margin-left:auto}
+
+.prompt-speech{
+  border:1px solid var(--bb);
+  border-radius:12px;
+  background:#f8fafc;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.prompt-speech-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(160px,1fr));
+  gap:10px;
+}
+.prompt-speech .label-title{font-size:12px;font-weight:600;color:#111}
+.prompt-speech-note{font-size:12px;color:var(--muted)}
+.prompt-volume-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.prompt-volume-value{min-width:36px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
 .row.inject-row{
   display:flex;
   flex-wrap:wrap;
@@ -625,6 +732,57 @@ header .title{
         </div>
       </details>
 
+      <details class="builder-section" data-section="prompts" open>
+        <summary>
+          <span>Prompts</span>
+          <label class="display-toggle"><input type="checkbox" id="prompts-enabled"> Enable prompts editor</label>
+        </summary>
+        <div class="section-body" id="prompts-section-body">
+          <div class="help">
+            Script timed coaching for the run. Each prompt stores an ID, timestamp, title, and spoken content so you can align
+            the builder with AED or dispatch audio. Disable the editor to hide prompts from the build view without deleting
+            the scripted lines.
+          </div>
+          <div id="prompt-speech-controls" class="prompt-speech">
+            <div class="prompt-speech-grid">
+              <label class="switch">
+                <input type="checkbox" id="prompt-speech-autoplay">
+                <span>Speak prompts during play</span>
+              </label>
+              <label>
+                <span class="label-title">Voice</span>
+                <select id="prompt-voice"></select>
+              </label>
+              <label>
+                <span class="label-title">Rate</span>
+                <input type="number" id="prompt-rate" min="0.5" max="2" step="0.1" value="1">
+              </label>
+              <label>
+                <span class="label-title">Pitch</span>
+                <input type="number" id="prompt-pitch" min="0" max="2" step="0.1" value="1">
+              </label>
+              <label>
+                <span class="label-title">Volume</span>
+                <div class="prompt-volume-wrap">
+                  <input type="range" id="prompt-volume" min="0" max="1" step="0.05" value="1">
+                  <span id="prompt-volume-value" class="prompt-volume-value">1.00</span>
+                </div>
+              </label>
+            </div>
+            <div class="row" style="gap:8px;">
+              <button type="button" id="prompt-speech-test" class="btn">Preview voice</button>
+              <span id="prompt-speech-note" class="prompt-speech-note"></span>
+            </div>
+          </div>
+          <div id="prompt-list"></div>
+          <div id="prompt-empty" class="prompt-empty muted">No prompts yet. Click <strong>Add prompt</strong> to begin.</div>
+          <div id="prompt-error" class="error"></div>
+          <div class="row">
+            <button id="add-prompt" class="btn">Add prompt</button>
+          </div>
+        </div>
+      </details>
+
       <details class="builder-section" data-section="timing" open>
         <summary>
           <span>Timing</span>
@@ -779,6 +937,18 @@ header .title{
           <h3>General Impression</h3>
           <div id="p-gi" class="content"></div>
         </div>
+      </div>
+
+      <div id="play-prompts-card" class="prompt-play-card hidden">
+        <h3>Prompts</h3>
+        <div class="prompt-play-controls">
+          <label class="switch">
+            <input type="checkbox" id="prompt-speech-play">
+            <span>Speak prompts aloud</span>
+          </label>
+          <button type="button" id="prompt-speech-stop" class="btn">Stop speech</button>
+        </div>
+        <div id="p-prompts" class="prompt-play-list"></div>
       </div>
 
      <div class="divider"></div>
@@ -1907,13 +2077,14 @@ async function loadAudioLibrary(){
 
 /* ---------------- Scenario model ---------------- */
 const DEFAULT_SCENARIO = {
-  meta:{title:"Scenario name",version:1,author:""},
+  meta:{title:"Scenario name",version:27,author:""},
   text:{
     dispatch:"",gi:"",avpu:"",noi:"",cspine:"",
     backstory:"",talkingPoints:"",
     hospitalEta:"—"
   },
   flags:{als:false},
+  features:{promptsEnabled:false},
   timing:{minutes:15},
   injects:[],
   vitals:{
@@ -1927,6 +2098,7 @@ const DEFAULT_SCENARIO = {
   audios:[],
   treatments:[],
   prompts:[],
+  promptsSpeech:{autoplay:true,voice:'',voiceName:'',lang:'',rate:1,pitch:1,volume:1},
   apgar:{
     one:{appearance:0,pulse:0,grimace:0,activity:0,respiration:0},
     five:{appearance:0,pulse:0,grimace:0,activity:0,respiration:0}
@@ -1974,6 +2146,17 @@ const DEFAULT_BEEP_PATTERN = '1short';
 const NO_BEEP_PATTERN = 'none';
 const START_BEEP_FREQ = 1000;
 const END_BEEP_FREQ = 650;
+const PROMPT_DEFAULT_INCREMENT = 30;
+const PROMPT_SPEECH_RATE_MIN = 0.5;
+const PROMPT_SPEECH_RATE_MAX = 2;
+const PROMPT_SPEECH_PITCH_MIN = 0;
+const PROMPT_SPEECH_PITCH_MAX = 2;
+const PROMPT_SPEECH_VOLUME_MIN = 0;
+const PROMPT_SPEECH_VOLUME_MAX = 1;
+const SPEECH_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
+let promptSpeechVoices = [];
+let spokenPromptIds = new Set();
+let promptSpeechStarted = false;
 let lastActiveInjectKey = null;
 let lastActiveInjectRef = null;
 const DEFAULT_AUDIO_VOLUME = 100;
@@ -2304,6 +2487,547 @@ function ensureInjectListDefaults(list){
   return list;
 }
 
+function ensurePromptListDefaults(list){
+  const prompts = Array.isArray(list) ? list : [];
+  prompts.forEach((prompt, idx) => {
+    if (!prompt || typeof prompt !== 'object'){
+      prompts[idx] = {
+        id: `prompt${idx+1}`,
+        time: 0,
+        title: `Prompt ${idx+1}`,
+        content: '',
+        enabled: true
+      };
+      return;
+    }
+    if (!prompt.id){
+      prompt.id = `prompt${idx+1}`;
+    }
+    const rawTime = Number(prompt.time);
+    prompt.time = Number.isFinite(rawTime) ? Math.max(0, Math.round(rawTime)) : 0;
+    if (typeof prompt.title !== 'string' || !prompt.title.trim()){
+      prompt.title = `Prompt ${idx+1}`;
+    }
+    if (typeof prompt.content !== 'string'){
+      prompt.content = '';
+    }
+    if (prompt.enabled == null){
+      prompt.enabled = true;
+    }
+  });
+  return prompts;
+}
+
+function clampNumber(value, min, max, fallback){
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, num));
+}
+
+function ensurePromptsSpeechDefaults(cfg){
+  const base = (cfg && typeof cfg === 'object') ? {...cfg} : {};
+  if (base.autoplay == null) base.autoplay = true;
+  base.voice = typeof base.voice === 'string' ? base.voice : '';
+  base.voiceName = typeof base.voiceName === 'string' ? base.voiceName : '';
+  base.lang = typeof base.lang === 'string' ? base.lang : '';
+  base.rate = clampNumber(base.rate, PROMPT_SPEECH_RATE_MIN, PROMPT_SPEECH_RATE_MAX, 1);
+  base.pitch = clampNumber(base.pitch, PROMPT_SPEECH_PITCH_MIN, PROMPT_SPEECH_PITCH_MAX, 1);
+  base.volume = clampNumber(base.volume, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+  return base;
+}
+
+function getPromptsSpeechConfig(){
+  scenario.promptsSpeech = ensurePromptsSpeechDefaults(scenario.promptsSpeech);
+  return scenario.promptsSpeech;
+}
+
+function speechEngine(){
+  return SPEECH_SUPPORTED ? window.speechSynthesis : null;
+}
+
+function updatePromptVolumeLabel(){
+  const slider = byId('prompt-volume');
+  const label = byId('prompt-volume-value');
+  if (!slider || !label) return;
+  const val = clampNumber(slider.value, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+  label.textContent = val.toFixed(2);
+}
+
+function resolvePromptVoice(cfg){
+  if (!SPEECH_SUPPORTED) return null;
+  if (!cfg || !cfg.voice) return null;
+  const voices = promptSpeechVoices || [];
+  return voices.find(v => v.voiceURI === cfg.voice || v.name === cfg.voice) || null;
+}
+
+function speakPromptText(text, cfg, options){
+  if (!SPEECH_SUPPORTED) return;
+  const engine = speechEngine();
+  if (!engine || !text) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = clampNumber(cfg?.rate, PROMPT_SPEECH_RATE_MIN, PROMPT_SPEECH_RATE_MAX, 1);
+  utter.pitch = clampNumber(cfg?.pitch, PROMPT_SPEECH_PITCH_MIN, PROMPT_SPEECH_PITCH_MAX, 1);
+  utter.volume = clampNumber(cfg?.volume, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+  const voice = resolvePromptVoice(cfg || {});
+  if (voice){
+    utter.voice = voice;
+    if (voice.lang) utter.lang = voice.lang;
+  } else if (cfg?.lang){
+    utter.lang = cfg.lang;
+  }
+  if (options && options.cancelFirst){
+    try{ engine.cancel(); }catch{}
+  }
+  engine.speak(utter);
+}
+
+function stopPromptSpeechPlayback(options){
+  if (!SPEECH_SUPPORTED) return;
+  const engine = speechEngine();
+  if (!engine) return;
+  try{ engine.cancel(); }catch{}
+  if (options && options.resetSpoken){
+    spokenPromptIds.clear();
+  }
+}
+
+function resetPromptSpeechState(opts){
+  const options = opts || {};
+  stopPromptSpeechPlayback({ resetSpoken: options.resetSpoken !== false });
+  if (options.hard){
+    promptSpeechStarted = false;
+  }
+}
+
+function maybeSpeakPrompts(list, now){
+  if (!SPEECH_SUPPORTED) return;
+  const cfg = getPromptsSpeechConfig();
+  if (cfg.autoplay === false) return;
+  if (!promptSpeechStarted) return;
+  list.forEach(prompt => {
+    if (!prompt || prompt.enabled === false) return;
+    const id = prompt.id || '';
+    if (spokenPromptIds.has(id)) return;
+    const t = Math.max(0, Math.round(Number(prompt.time) || 0));
+    if (t > now) return;
+    const text = (prompt.content && String(prompt.content).trim()) || (prompt.title && String(prompt.title).trim()) || id;
+    spokenPromptIds.add(id);
+    if (!text){
+      return;
+    }
+    speakPromptText(text, cfg);
+  });
+}
+
+function getSortedEnabledPrompts(){
+  scenario.prompts = ensurePromptListDefaults(scenario.prompts);
+  const enabled = (scenario.prompts || []).filter(p => p && p.enabled !== false);
+  return enabled.slice().sort((a,b)=>{
+    const aTime = Math.max(0, Math.round(Number(a.time) || 0));
+    const bTime = Math.max(0, Math.round(Number(b.time) || 0));
+    return aTime - bTime;
+  });
+}
+
+function speakPromptsThroughNow(){
+  if (!SPEECH_SUPPORTED) return;
+  const now = Math.max(0, elapsed|0);
+  const sorted = getSortedEnabledPrompts();
+  maybeSpeakPrompts(sorted, now);
+}
+
+function syncPromptSpeechControls(){
+  const cfg = getPromptsSpeechConfig();
+  const builderToggle = byId('prompt-speech-autoplay');
+  const playToggle = byId('prompt-speech-play');
+  const rateEl = byId('prompt-rate');
+  const pitchEl = byId('prompt-pitch');
+  const volumeEl = byId('prompt-volume');
+  const note = byId('prompt-speech-note');
+  const voiceSel = byId('prompt-voice');
+  const testBtn = byId('prompt-speech-test');
+  const stopBtn = byId('prompt-speech-stop');
+  const supported = SPEECH_SUPPORTED;
+
+  if (builderToggle){
+    builderToggle.checked = cfg.autoplay !== false;
+    builderToggle.disabled = !supported;
+  }
+  if (playToggle){
+    playToggle.checked = cfg.autoplay !== false;
+    playToggle.disabled = !supported;
+  }
+  if (rateEl){
+    rateEl.value = cfg.rate;
+    rateEl.disabled = !supported;
+  }
+  if (pitchEl){
+    pitchEl.value = cfg.pitch;
+    pitchEl.disabled = !supported;
+  }
+  if (volumeEl){
+    volumeEl.value = cfg.volume;
+    volumeEl.disabled = !supported;
+  }
+  updatePromptVolumeLabel();
+
+  if (voiceSel){
+    voiceSel.disabled = !supported;
+    const selected = cfg.voice || '';
+    const existing = Array.from(voiceSel.options).some(opt => opt.value === selected);
+    if (selected && !existing){
+      const opt = document.createElement('option');
+      opt.value = selected;
+      opt.dataset.voiceName = cfg.voiceName || selected;
+      opt.dataset.voiceLang = cfg.lang || '';
+      opt.textContent = cfg.voiceName ? `${cfg.voiceName} (unavailable)` : `${selected} (unavailable)`;
+      opt.selected = true;
+      voiceSel.appendChild(opt);
+    } else {
+      voiceSel.value = selected;
+    }
+  }
+
+  if (note){
+    if (!supported){
+      note.textContent = 'Speech synthesis is not supported in this browser.';
+    } else if (!promptSpeechVoices.length){
+      note.textContent = 'Voices are loading from the browser. The default voice will be used if none are available yet.';
+    } else {
+      note.textContent = '';
+    }
+  }
+
+  if (testBtn){
+    testBtn.disabled = !supported;
+  }
+  if (stopBtn){
+    stopBtn.disabled = !supported;
+  }
+}
+
+function populatePromptVoiceSelect(){
+  const select = byId('prompt-voice');
+  if (!select) return;
+  const cfg = getPromptsSpeechConfig();
+  select.innerHTML = '';
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Browser default';
+  select.appendChild(defaultOption);
+
+  (promptSpeechVoices || []).forEach(voice => {
+    const opt = document.createElement('option');
+    opt.value = voice.voiceURI || voice.name || '';
+    opt.dataset.voiceName = voice.name || '';
+    opt.dataset.voiceLang = voice.lang || '';
+    opt.textContent = voice.name ? `${voice.name}${voice.lang ? ` (${voice.lang})` : ''}` : (voice.lang || 'Voice');
+    if (voice.default) opt.textContent += ' •';
+    if (cfg.voice && (cfg.voice === opt.value || cfg.voice === voice.name)){
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+
+  syncPromptSpeechControls();
+}
+
+function refreshPromptSpeechVoices(){
+  if (!SPEECH_SUPPORTED){
+    promptSpeechVoices = [];
+    populatePromptVoiceSelect();
+    return;
+  }
+  try{
+    promptSpeechVoices = window.speechSynthesis.getVoices().slice().sort((a,b)=>{
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return (a.lang || '').localeCompare(b.lang || '');
+    });
+  }catch{
+    promptSpeechVoices = [];
+  }
+  populatePromptVoiceSelect();
+}
+
+function promptsEnabled(){
+  return !!(scenario.features && scenario.features.promptsEnabled);
+}
+
+function syncPromptsSectionVisibility(){
+  const body = byId('prompts-section-body');
+  const addBtn = byId('add-prompt');
+  const empty = byId('prompt-empty');
+  const enabled = promptsEnabled();
+  if (body) body.classList.toggle('hidden', !enabled);
+  if (addBtn) addBtn.disabled = !enabled;
+  if (!enabled && empty){
+    empty.classList.add('hidden');
+  }
+}
+
+function drawPrompts(){
+  const host = byId('prompt-list');
+  if (!host){
+    return;
+  }
+  syncPromptsSectionVisibility();
+  host.innerHTML = '';
+  const empty = byId('prompt-empty');
+  const promptError = byId('prompt-error');
+  if (promptError){
+    promptError.textContent = '';
+  }
+  if (!promptsEnabled()){
+    if (empty) empty.classList.add('hidden');
+    return;
+  }
+
+  scenario.prompts = ensurePromptListDefaults(scenario.prompts);
+  const list = scenario.prompts;
+  list.forEach((prompt, idx) => {
+    const timeValue = fmt(Math.max(0, Math.round(Number(prompt.time) || 0)));
+    const row = document.createElement('div');
+    row.className = 'prompt-row';
+    const titleValue = escapeAttr(prompt.title || '');
+    const contentValue = escapeAttr(prompt.content || '');
+    const idValue = escapeAttr(prompt.id || `prompt${idx+1}`);
+    const enabledChecked = prompt.enabled === false ? '' : 'checked';
+    const disableUp = idx === 0 ? 'disabled' : '';
+    const disableDown = idx === list.length - 1 ? 'disabled' : '';
+
+    row.innerHTML = `
+      <span class="badge">#${idx+1}</span>
+      <label class="prompt-field id-field">
+        <span class="label-title">ID</span>
+        <input class="prompt-id" type="text" value="${idValue}" placeholder="prompt-id">
+      </label>
+      <label class="prompt-field time-field">
+        <span class="label-title">Time</span>
+        <input class="prompt-time" type="text" value="${timeValue}" placeholder="mm:ss or seconds">
+      </label>
+      <label class="prompt-field title-field">
+        <span class="label-title">Title</span>
+        <input class="prompt-title" type="text" value="${titleValue}" placeholder="Prompt title">
+      </label>
+      <label class="prompt-field content-field">
+        <span class="label-title">Prompt text</span>
+        <textarea class="prompt-content" rows="3" placeholder="Spoken script">${contentValue}</textarea>
+      </label>
+      <label class="switch prompt-enabled">
+        <input type="checkbox" class="prompt-enabled-toggle" ${enabledChecked}>
+        <span>Enabled</span>
+      </label>
+      <div class="prompt-actions">
+        <button type="button" class="btn prompt-up" ${disableUp}>Move up</button>
+        <button type="button" class="btn prompt-down" ${disableDown}>Move down</button>
+        <button type="button" class="btn danger prompt-delete">Delete</button>
+      </div>
+    `;
+
+    const idInput = row.querySelector('.prompt-id');
+    if (idInput){
+      idInput.addEventListener('change', () => {
+        prompt.id = idInput.value.trim() || `prompt${idx+1}`;
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    const timeInput = row.querySelector('.prompt-time');
+    if (timeInput){
+      timeInput.addEventListener('change', () => {
+        const seconds = parseTimeFlexible(timeInput.value);
+        if (seconds < 0){
+          if (promptError){
+            promptError.textContent = 'Time must be mm:ss or seconds (e.g., 0:30 or 30).';
+          }
+          timeInput.value = fmt(Math.max(0, Math.round(Number(prompt.time) || 0)));
+          return;
+        }
+        if (promptError){
+          promptError.textContent = '';
+        }
+        prompt.time = seconds;
+        timeInput.value = fmt(seconds);
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    const titleInput = row.querySelector('.prompt-title');
+    if (titleInput){
+      titleInput.addEventListener('change', () => {
+        prompt.title = titleInput.value;
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    const contentInput = row.querySelector('.prompt-content');
+    if (contentInput){
+      contentInput.addEventListener('change', () => {
+        prompt.content = contentInput.value;
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    const enabledInput = row.querySelector('.prompt-enabled-toggle');
+    if (enabledInput){
+      enabledInput.addEventListener('change', () => {
+        prompt.enabled = !!enabledInput.checked;
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    const upBtn = row.querySelector('.prompt-up');
+    if (upBtn){
+      upBtn.addEventListener('click', () => {
+        if (idx === 0) return;
+        const item = scenario.prompts.splice(idx, 1)[0];
+        scenario.prompts.splice(idx - 1, 0, item);
+        drawPrompts();
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    const downBtn = row.querySelector('.prompt-down');
+    if (downBtn){
+      downBtn.addEventListener('click', () => {
+        if (idx >= scenario.prompts.length - 1) return;
+        const item = scenario.prompts.splice(idx, 1)[0];
+        scenario.prompts.splice(idx + 1, 0, item);
+        drawPrompts();
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    const delBtn = row.querySelector('.prompt-delete');
+    if (delBtn){
+      delBtn.addEventListener('click', () => {
+        scenario.prompts.splice(idx, 1);
+        drawPrompts();
+        save({skipRedraw:true});
+        renderPromptsPanel();
+      });
+    }
+
+    host.appendChild(row);
+  });
+
+  if (empty){
+    empty.classList.toggle('hidden', (scenario.prompts || []).length > 0);
+  }
+}
+
+function addPrompt(){
+  scenario.prompts = ensurePromptListDefaults(scenario.prompts);
+  const list = scenario.prompts;
+  const last = list.length ? list[list.length - 1] : null;
+  const nextTime = last ? Math.max(0, Math.round(Number(last.time) || 0) + PROMPT_DEFAULT_INCREMENT) : 0;
+  const nextIndex = list.length + 1;
+  list.push({
+    id: `prompt${Date.now()}`,
+    time: nextTime,
+    title: `Prompt ${nextIndex}`,
+    content: '',
+    enabled: true
+  });
+  drawPrompts();
+  save({skipRedraw:true});
+  renderPromptsPanel();
+}
+
+function renderPromptsPanel(){
+  const card = byId('play-prompts-card');
+  const host = byId('p-prompts');
+  if (!card || !host){
+    return;
+  }
+
+  if (!promptsEnabled()){
+    card.classList.add('hidden');
+    host.innerHTML = '';
+    return;
+  }
+
+  const sorted = getSortedEnabledPrompts();
+  if (!sorted.length){
+    card.classList.add('hidden');
+    host.innerHTML = '';
+    return;
+  }
+
+  const now = Math.max(0, elapsed|0);
+  let activeIndex = -1;
+  sorted.forEach((prompt, idx) => {
+    const t = Math.max(0, Math.round(Number(prompt.time) || 0));
+    if (t <= now){
+      activeIndex = idx;
+    }
+  });
+
+  host.innerHTML = '';
+  sorted.forEach((prompt, idx) => {
+    const promptTime = Math.max(0, Math.round(Number(prompt.time) || 0));
+    const row = document.createElement('div');
+    row.className = 'prompt-play-row';
+    if (idx === activeIndex){
+      row.classList.add('prompt-play-row--active');
+    } else if (idx < activeIndex){
+      row.classList.add('prompt-play-row--past');
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'prompt-play-meta';
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'prompt-play-time';
+    timeEl.textContent = `T+${fmt(promptTime)}`;
+    meta.appendChild(timeEl);
+
+    if (prompt.title){
+      const titleEl = document.createElement('span');
+      titleEl.className = 'prompt-play-title';
+      titleEl.textContent = prompt.title;
+      meta.appendChild(titleEl);
+    }
+
+    const statusEl = document.createElement('span');
+    statusEl.className = 'prompt-play-status';
+    const delta = promptTime - now;
+    if (delta > 0){
+      statusEl.textContent = `in ${fmt(delta)}`;
+    } else if (delta === 0){
+      statusEl.textContent = 'Now';
+    } else {
+      statusEl.textContent = `${fmt(Math.abs(delta))} ago`;
+    }
+    meta.appendChild(statusEl);
+
+    row.appendChild(meta);
+
+    if (prompt.content){
+      const contentEl = document.createElement('div');
+      contentEl.className = 'prompt-play-content';
+      contentEl.textContent = prompt.content;
+      row.appendChild(contentEl);
+    }
+
+    host.appendChild(row);
+  });
+
+  maybeSpeakPrompts(sorted, now);
+
+  card.classList.remove('hidden');
+}
+
 function toneOnce(freq=1000, ms=200, vol=0.25){
   runToneWithContext(ctx=>{
     const o = ctx.createOscillator();
@@ -2486,6 +3210,7 @@ function startNextInject(fromId){
 /* ---------------- Engine ---------------- */
 function resetRun(){
   running=false; if(interval){ clearInterval(interval); interval=null; }
+  resetPromptSpeechState({hard:true});
   tLeft=(scenario.timing.minutes||15)*60; elapsed=0;
   vitals={...scenario.vitals}; baseline={...scenario.vitals};
   activeTx={}; decayTx={};
@@ -2515,8 +3240,24 @@ function resetRun(){
   renderAll();
   if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
 }
-function start(){ if (running) return; running=true; maybeStartAutoLoop(); interval=setInterval(tick,1000); }
-function pause(){ running=false; if(interval){ clearInterval(interval); interval=null; } }
+function start(){
+  if (running) return;
+  running=true;
+  promptSpeechStarted = true;
+  if (SPEECH_SUPPORTED){
+    try{ window.speechSynthesis.resume(); }catch{}
+  }
+  speakPromptsThroughNow();
+  maybeStartAutoLoop();
+  interval=setInterval(tick,1000);
+}
+function pause(){
+  running=false;
+  if(interval){ clearInterval(interval); interval=null; }
+  if (SPEECH_SUPPORTED){
+    try{ window.speechSynthesis.pause(); }catch{}
+  }
+}
 function tick(){
   if (tLeft<=0){ pause(); endBell(); return; }
   tLeft -= 1; elapsed += 1;
@@ -2793,6 +3534,8 @@ function renderStatic(){
     const heading = physBlock.previousElementSibling;
     if (heading && heading.tagName==='H3') heading.classList.toggle('hidden', hidePhys);
   }
+
+  renderPromptsPanel();
 
   renderTreatmentLog();
 
@@ -4018,6 +4761,43 @@ function save(options){
   const ttp=byId('txt-talkingpoints'); if(ttp) scenario.text.talkingPoints=ttp.value;
   const the=byId('txt-hospital-eta'); if(the) scenario.text.hospitalEta=(the.value||'').trim()||'—';
   scenario.flags.als=byId('flag-als-build')?.checked||byId('flag-als-play')?.checked||false;
+  scenario.features = scenario.features || {};
+  const promptsToggle = byId('prompts-enabled');
+  if (promptsToggle){
+    scenario.features.promptsEnabled = !!promptsToggle.checked;
+  }
+  const promptsSpeech = getPromptsSpeechConfig();
+  const speechAutoplay = byId('prompt-speech-autoplay');
+  if (speechAutoplay){
+    promptsSpeech.autoplay = !!speechAutoplay.checked;
+  }
+  const playSpeechToggle = byId('prompt-speech-play');
+  if (playSpeechToggle){
+    playSpeechToggle.checked = promptsSpeech.autoplay !== false;
+  }
+  const voiceSelect = byId('prompt-voice');
+  if (voiceSelect){
+    const selectedOption = voiceSelect.options[voiceSelect.selectedIndex];
+    promptsSpeech.voice = voiceSelect.value || '';
+    promptsSpeech.voiceName = selectedOption?.dataset.voiceName || (promptsSpeech.voice ? (selectedOption?.textContent || '') : '');
+    promptsSpeech.lang = selectedOption?.dataset.voiceLang || (promptsSpeech.voice ? promptsSpeech.lang : '');
+  }
+  const rateInput = byId('prompt-rate');
+  if (rateInput){
+    promptsSpeech.rate = clampNumber(rateInput.value, PROMPT_SPEECH_RATE_MIN, PROMPT_SPEECH_RATE_MAX, 1);
+    rateInput.value = promptsSpeech.rate;
+  }
+  const pitchInput = byId('prompt-pitch');
+  if (pitchInput){
+    promptsSpeech.pitch = clampNumber(pitchInput.value, PROMPT_SPEECH_PITCH_MIN, PROMPT_SPEECH_PITCH_MAX, 1);
+    pitchInput.value = promptsSpeech.pitch;
+  }
+  const volumeInput = byId('prompt-volume');
+  if (volumeInput){
+    promptsSpeech.volume = clampNumber(volumeInput.value, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+    volumeInput.value = promptsSpeech.volume;
+    updatePromptVolumeLabel();
+  }
   scenario.timing.minutes=parseInt(byId('min')?.value||'15',10);
 
   scenario.vitals.hr=+byId('v-hr').value; scenario.vitals.rr=+byId('v-rr').value;
@@ -4103,6 +4883,35 @@ function save(options){
     }
   });
 
+  if (scenario.features.promptsEnabled){
+    const rows = Array.from(document.querySelectorAll('#prompt-list .prompt-row'));
+    const prevList = Array.isArray(scenario.prompts) ? scenario.prompts : [];
+    const prompts = rows.map((row, idx) => {
+      const prev = prevList[idx] || {};
+      const id = row.querySelector('.prompt-id')?.value?.trim() || prev.id || `prompt${idx+1}`;
+      const timeStr = row.querySelector('.prompt-time')?.value || '';
+      const title = row.querySelector('.prompt-title')?.value || '';
+      const content = row.querySelector('.prompt-content')?.value || '';
+      const enabled = row.querySelector('.prompt-enabled-toggle')?.checked !== false;
+      let seconds = parseTimeFlexible(timeStr);
+      if (seconds < 0){
+        const fallback = Number(prev.time);
+        seconds = Number.isFinite(fallback) ? Math.max(0, Math.round(fallback)) : 0;
+      }
+      const record = {
+        id,
+        time: seconds,
+        title,
+        content
+      };
+      if (!enabled){
+        record.enabled = false;
+      }
+      return record;
+    });
+    scenario.prompts = ensurePromptListDefaults(prompts);
+  }
+
   // Display toggles
   scenario.displayOnPlay = scenario.displayOnPlay || {};
   document.querySelectorAll('input[data-display-key]').forEach(cb=>{
@@ -4122,6 +4931,7 @@ try{
   if (!opts.skipRedraw){
     drawInjects();
     drawTreatments();
+    drawPrompts();
     buildTxButtons();
     if (typeof buildNbTxButtons === 'function'){
       buildNbTxButtons();
@@ -4133,6 +4943,7 @@ try{
 function load(){
   const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
   ensureScenarioDefaults();
+  resetPromptSpeechState({hard:true});
   // seed UI
   byId('meta-title').value=scenario.meta.title||'';
   byId('meta-author').value=scenario.meta.author||'';
@@ -4195,6 +5006,14 @@ function load(){
     delete scenario.audio;
   }
   drawAudioEditor();   // build list UI
+
+  const promptsToggle = byId('prompts-enabled');
+  if (promptsToggle){
+    promptsToggle.checked = promptsEnabled();
+  }
+  drawPrompts();
+  refreshPromptSpeechVoices();
+  renderPromptsPanel();
 
   hydrateBuilderInputs();
   drawInjects(); drawTreatments(); buildTxButtons();
@@ -4288,6 +5107,73 @@ safeOn(byId('add-audio'),'click',()=>{
   drawAudioEditor();
 });
 
+  safeOn(byId('prompts-enabled'),'change', ()=>{
+    save();
+    syncPromptsSectionVisibility();
+    drawPrompts();
+    renderPromptsPanel();
+  });
+
+  safeOn(byId('prompt-speech-autoplay'),'change', ()=>{
+    save({skipRedraw:true});
+    syncPromptSpeechControls();
+    const autoplayChecked = !!byId('prompt-speech-autoplay')?.checked;
+    if (!autoplayChecked){
+      stopPromptSpeechPlayback();
+    } else if (promptSpeechStarted){
+      speakPromptsThroughNow();
+    }
+  });
+  safeOn(byId('prompt-voice'),'change', ()=>{
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-rate'),'input', ()=>{
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-pitch'),'input', ()=>{
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-volume'),'input', ()=>{
+    updatePromptVolumeLabel();
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-speech-test'),'click', (event)=>{
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    if (!SPEECH_SUPPORTED){
+      return;
+    }
+    const cfg = getPromptsSpeechConfig();
+    const sample = (scenario.prompts || []).find(p => p && p.enabled !== false);
+    const text = (sample && ((sample.content && sample.content.trim()) || (sample.title && sample.title.trim()))) || 'Prompt speech preview.';
+    speakPromptText(text, cfg, {cancelFirst:true});
+  });
+  safeOn(byId('prompt-speech-play'),'change', ()=>{
+    const playToggle = byId('prompt-speech-play');
+    const builderToggle = byId('prompt-speech-autoplay');
+    if (builderToggle && playToggle){
+      builderToggle.checked = !!playToggle.checked;
+    }
+    save({skipRedraw:true});
+    syncPromptSpeechControls();
+    if (!playToggle?.checked){
+      stopPromptSpeechPlayback();
+    } else if (promptSpeechStarted){
+      speakPromptsThroughNow();
+    }
+  });
+  safeOn(byId('prompt-speech-stop'),'click', (event)=>{
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    stopPromptSpeechPlayback();
+  });
+
+  safeOn(byId('add-prompt'),'click', (event)=>{
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    if (!promptsEnabled()){
+      return;
+    }
+    addPrompt();
+  });
+
 
   // ALS
   safeOn(byId('flag-als-build'),'change',()=>{ scenario.flags.als=byId('flag-als-build').checked; const cp=byId('flag-als-play'); if(cp) cp.checked=scenario.flags.als; save(); });
@@ -4348,6 +5234,15 @@ safeOn(byId('add-audio'),'click',()=>{
       setScenarioSelectValue(value);
     };
     scenarioSelects().forEach(select => safeOn(select,'change',onScenarioSelectChange));
+  if (SPEECH_SUPPORTED){
+    try{
+      window.speechSynthesis.addEventListener('voiceschanged', refreshPromptSpeechVoices);
+    }catch{
+      window.speechSynthesis.onvoiceschanged = refreshPromptSpeechVoices;
+    }
+  } else {
+    syncPromptSpeechControls();
+  }
 } // <-- close wire()
 
 function ensureScenarioDefaults(){
@@ -4363,6 +5258,10 @@ function ensureScenarioDefaults(){
   scenario.text.talkingPoints ??= "";
   scenario.text.hospitalEta ??= "—";
   scenario.flags = scenario.flags || {als:false};
+  scenario.features = scenario.features || {};
+  if (scenario.features.promptsEnabled == null){
+    scenario.features.promptsEnabled = false;
+  }
   scenario.timing = scenario.timing || {minutes:15};
   scenario.injects = Array.isArray(scenario.injects) ? scenario.injects : [];
   ensureInjectListDefaults(scenario.injects);
@@ -4393,7 +5292,8 @@ function ensureScenarioDefaults(){
     }
   });
   scenario.treatments = Array.isArray(scenario.treatments) ? scenario.treatments : [];
-  scenario.prompts = Array.isArray(scenario.prompts) ? scenario.prompts : [];
+  scenario.prompts = ensurePromptListDefaults(scenario.prompts);
+  scenario.promptsSpeech = ensurePromptsSpeechDefaults(scenario.promptsSpeech);
   if (!scenario.apgar) scenario.apgar = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.apgar));
   if (!scenario.apgarNotes) scenario.apgarNotes = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.apgarNotes));
   if (!scenario.nbVitals) scenario.nbVitals = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.nbVitals));
