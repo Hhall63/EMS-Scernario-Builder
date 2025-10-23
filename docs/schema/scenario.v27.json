@@ -233,6 +233,19 @@
           "enabled": { "type": "boolean" }
         }
       }
+    },
+    "promptsSpeech": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "autoplay": { "type": "boolean" },
+        "voice": { "type": "string" },
+        "voiceName": { "type": "string" },
+        "lang": { "type": "string" },
+        "rate": { "type": "number", "minimum": 0.5, "maximum": 2 },
+        "pitch": { "type": "number", "minimum": 0, "maximum": 2 },
+        "volume": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
     }
   }
 }

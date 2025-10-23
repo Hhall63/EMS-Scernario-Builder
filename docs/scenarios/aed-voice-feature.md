@@ -7,7 +7,8 @@ This scenario packages the AED voice prompt script into a reusable training asse
 - **Inject timeline:** Eight injects echo the AED prompts in chronological order so facilitators can keep track of where the crew should be in the resuscitation cycle.
 - **Guided prompts:** Each voice line from the script appears in the `prompts` array with the second marker that aligns to the simulated AED playback. Toggle the Prompts editor on in Build mode to surface the list, adjust IDs, rewrite the spoken copy, or retime the cues.
 - **Builder toggle:** The Prompts section can be hidden entirely when the feature is not needed. Unchecking the editor toggle preserves the data but removes the UI from the build surface.
-- **Play preview:** Play mode now surfaces an ordered prompts panel that highlights the current line based on elapsed time so facilitators can shadow the AED cadence without audio playback.
+- **Speech synthesis:** Each prompt can auto-play as spoken audio using the browser's speech engine. Choose a voice, adjust rate, pitch, and volume, or disable the speech toggle entirely when silent practice is preferred.
+- **Play preview:** Play mode surfaces an ordered prompts panel that highlights the current line based on elapsed time. Enable the **Speak prompts aloud** toggle to hear the script during dry runs or turn it off for silent shadowing.
 - **Treatment focus:** Quick actions for applying pads, delivering the shock, and maintaining high-quality compressions are surfaced in the treatment list to anchor discussion and evaluation metrics.
 - **Cardiac arrest physiology:** Baseline vitals reflect a pulseless, apneic patient. You can pair the scenario with your own vital change injects or extend the treatments with post-ROSC targets depending on the learning objectives.
 
@@ -29,10 +30,12 @@ This scenario packages the AED voice prompt script into a reusable training asse
 2. Edit the **ID**, **Time**, **Title**, and **Prompt text** fields to match your device or curriculum. Time accepts seconds or `mm:ss` and normalizes to scenario time.
 3. Use the move controls to reorder lines or click **Delete** to remove a prompt. The **Enabled** switch keeps a line for future runs without showing it during play.
 4. Click **Add prompt** to append a new entry; the editor seeds the timestamp 30 seconds after the prior line for faster authoring.
-5. Uncheck **Enable prompts editor** to hide the section while keeping your custom prompts stored in the scenario JSON.
+5. Use the **Speak prompts during play** controls to select a voice, preview the cadence, and set the desired rate, pitch, and volume. These defaults apply whenever the scenario is launched.
+6. Uncheck **Enable prompts editor** to hide the section while keeping your custom prompts stored in the scenario JSON.
 
 ## Play preview
 - Open Play mode to see the scripted prompts listed beneath the Dispatch and General Impression cards.
+- Toggle **Speak prompts aloud** to control whether the browser vocalizes each line; use **Stop speech** to immediately halt playback without clearing the timeline.
 - The active prompt highlights in blue, completed lines fade, and upcoming lines display a countdown (“in 00:30”).
 - Disabling a prompt in Build mode removes it from the Play preview, allowing quick dry-run adjustments without deleting content.
 

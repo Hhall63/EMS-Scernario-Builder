@@ -156,6 +156,41 @@ button.muted{opacity:.6;cursor:not-allowed}
 .prompt-play-title{flex:1 1 auto}
 .prompt-play-status{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .prompt-play-content{font-size:14px;white-space:pre-wrap;color:#111}
+.prompt-play-controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  justify-content:space-between;
+  border-bottom:1px solid var(--bb);
+  padding-bottom:8px;
+  margin-bottom:8px;
+}
+.prompt-play-controls .switch{margin:0}
+.prompt-play-controls button{margin-left:auto}
+
+.prompt-speech{
+  border:1px solid var(--bb);
+  border-radius:12px;
+  background:#f8fafc;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.prompt-speech-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(160px,1fr));
+  gap:10px;
+}
+.prompt-speech .label-title{font-size:12px;font-weight:600;color:#111}
+.prompt-speech-note{font-size:12px;color:var(--muted)}
+.prompt-volume-wrap{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.prompt-volume-value{min-width:36px;text-align:right;font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted)}
 .row.inject-row{
   display:flex;
   flex-wrap:wrap;
@@ -723,6 +758,37 @@ header .title{
             the builder with AED or dispatch audio. Disable the editor to hide prompts from the build view without deleting
             the scripted lines.
           </div>
+          <div id="prompt-speech-controls" class="prompt-speech">
+            <div class="prompt-speech-grid">
+              <label class="switch">
+                <input type="checkbox" id="prompt-speech-autoplay">
+                <span>Speak prompts during play</span>
+              </label>
+              <label>
+                <span class="label-title">Voice</span>
+                <select id="prompt-voice"></select>
+              </label>
+              <label>
+                <span class="label-title">Rate</span>
+                <input type="number" id="prompt-rate" min="0.5" max="2" step="0.1" value="1">
+              </label>
+              <label>
+                <span class="label-title">Pitch</span>
+                <input type="number" id="prompt-pitch" min="0" max="2" step="0.1" value="1">
+              </label>
+              <label>
+                <span class="label-title">Volume</span>
+                <div class="prompt-volume-wrap">
+                  <input type="range" id="prompt-volume" min="0" max="1" step="0.05" value="1">
+                  <span id="prompt-volume-value" class="prompt-volume-value">1.00</span>
+                </div>
+              </label>
+            </div>
+            <div class="row" style="gap:8px;">
+              <button type="button" id="prompt-speech-test" class="btn">Preview voice</button>
+              <span id="prompt-speech-note" class="prompt-speech-note"></span>
+            </div>
+          </div>
           <div id="prompt-list"></div>
           <div id="prompt-empty" class="prompt-empty muted">No prompts yet. Click <strong>Add prompt</strong> to begin.</div>
           <div id="prompt-error" class="error"></div>
@@ -890,6 +956,13 @@ header .title{
 
       <div id="play-prompts-card" class="prompt-play-card hidden">
         <h3>Prompts</h3>
+        <div class="prompt-play-controls">
+          <label class="switch">
+            <input type="checkbox" id="prompt-speech-play">
+            <span>Speak prompts aloud</span>
+          </label>
+          <button type="button" id="prompt-speech-stop" class="btn">Stop speech</button>
+        </div>
         <div id="p-prompts" class="prompt-play-list"></div>
       </div>
 
@@ -2040,6 +2113,7 @@ const DEFAULT_SCENARIO = {
   audios:[],
   treatments:[],
   prompts:[],
+  promptsSpeech:{autoplay:true,voice:'',voiceName:'',lang:'',rate:1,pitch:1,volume:1},
   apgar:{
     one:{appearance:0,pulse:0,grimace:0,activity:0,respiration:0},
     five:{appearance:0,pulse:0,grimace:0,activity:0,respiration:0}
@@ -2088,6 +2162,16 @@ const NO_BEEP_PATTERN = 'none';
 const START_BEEP_FREQ = 1000;
 const END_BEEP_FREQ = 650;
 const PROMPT_DEFAULT_INCREMENT = 30;
+const PROMPT_SPEECH_RATE_MIN = 0.5;
+const PROMPT_SPEECH_RATE_MAX = 2;
+const PROMPT_SPEECH_PITCH_MIN = 0;
+const PROMPT_SPEECH_PITCH_MAX = 2;
+const PROMPT_SPEECH_VOLUME_MIN = 0;
+const PROMPT_SPEECH_VOLUME_MAX = 1;
+const SPEECH_SUPPORTED = typeof window !== 'undefined' && 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
+let promptSpeechVoices = [];
+let spokenPromptIds = new Set();
+let promptSpeechStarted = false;
 let lastActiveInjectKey = null;
 let lastActiveInjectRef = null;
 const DEFAULT_AUDIO_VOLUME = 100;
@@ -2449,6 +2533,240 @@ function ensurePromptListDefaults(list){
   return prompts;
 }
 
+function clampNumber(value, min, max, fallback){
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.min(max, Math.max(min, num));
+}
+
+function ensurePromptsSpeechDefaults(cfg){
+  const base = (cfg && typeof cfg === 'object') ? {...cfg} : {};
+  if (base.autoplay == null) base.autoplay = true;
+  base.voice = typeof base.voice === 'string' ? base.voice : '';
+  base.voiceName = typeof base.voiceName === 'string' ? base.voiceName : '';
+  base.lang = typeof base.lang === 'string' ? base.lang : '';
+  base.rate = clampNumber(base.rate, PROMPT_SPEECH_RATE_MIN, PROMPT_SPEECH_RATE_MAX, 1);
+  base.pitch = clampNumber(base.pitch, PROMPT_SPEECH_PITCH_MIN, PROMPT_SPEECH_PITCH_MAX, 1);
+  base.volume = clampNumber(base.volume, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+  return base;
+}
+
+function getPromptsSpeechConfig(){
+  scenario.promptsSpeech = ensurePromptsSpeechDefaults(scenario.promptsSpeech);
+  return scenario.promptsSpeech;
+}
+
+function speechEngine(){
+  return SPEECH_SUPPORTED ? window.speechSynthesis : null;
+}
+
+function updatePromptVolumeLabel(){
+  const slider = byId('prompt-volume');
+  const label = byId('prompt-volume-value');
+  if (!slider || !label) return;
+  const val = clampNumber(slider.value, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+  label.textContent = val.toFixed(2);
+}
+
+function resolvePromptVoice(cfg){
+  if (!SPEECH_SUPPORTED) return null;
+  if (!cfg || !cfg.voice) return null;
+  const voices = promptSpeechVoices || [];
+  return voices.find(v => v.voiceURI === cfg.voice || v.name === cfg.voice) || null;
+}
+
+function speakPromptText(text, cfg, options){
+  if (!SPEECH_SUPPORTED) return;
+  const engine = speechEngine();
+  if (!engine || !text) return;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = clampNumber(cfg?.rate, PROMPT_SPEECH_RATE_MIN, PROMPT_SPEECH_RATE_MAX, 1);
+  utter.pitch = clampNumber(cfg?.pitch, PROMPT_SPEECH_PITCH_MIN, PROMPT_SPEECH_PITCH_MAX, 1);
+  utter.volume = clampNumber(cfg?.volume, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+  const voice = resolvePromptVoice(cfg || {});
+  if (voice){
+    utter.voice = voice;
+    if (voice.lang) utter.lang = voice.lang;
+  } else if (cfg?.lang){
+    utter.lang = cfg.lang;
+  }
+  if (options && options.cancelFirst){
+    try{ engine.cancel(); }catch{}
+  }
+  engine.speak(utter);
+}
+
+function stopPromptSpeechPlayback(options){
+  if (!SPEECH_SUPPORTED) return;
+  const engine = speechEngine();
+  if (!engine) return;
+  try{ engine.cancel(); }catch{}
+  if (options && options.resetSpoken){
+    spokenPromptIds.clear();
+  }
+}
+
+function resetPromptSpeechState(opts){
+  const options = opts || {};
+  stopPromptSpeechPlayback({ resetSpoken: options.resetSpoken !== false });
+  if (options.hard){
+    promptSpeechStarted = false;
+  }
+}
+
+function maybeSpeakPrompts(list, now){
+  if (!SPEECH_SUPPORTED) return;
+  const cfg = getPromptsSpeechConfig();
+  if (cfg.autoplay === false) return;
+  if (!promptSpeechStarted) return;
+  list.forEach(prompt => {
+    if (!prompt || prompt.enabled === false) return;
+    const id = prompt.id || '';
+    if (spokenPromptIds.has(id)) return;
+    const t = Math.max(0, Math.round(Number(prompt.time) || 0));
+    if (t > now) return;
+    const text = (prompt.content && String(prompt.content).trim()) || (prompt.title && String(prompt.title).trim()) || id;
+    spokenPromptIds.add(id);
+    if (!text){
+      return;
+    }
+    speakPromptText(text, cfg);
+  });
+}
+
+function getSortedEnabledPrompts(){
+  scenario.prompts = ensurePromptListDefaults(scenario.prompts);
+  const enabled = (scenario.prompts || []).filter(p => p && p.enabled !== false);
+  return enabled.slice().sort((a,b)=>{
+    const aTime = Math.max(0, Math.round(Number(a.time) || 0));
+    const bTime = Math.max(0, Math.round(Number(b.time) || 0));
+    return aTime - bTime;
+  });
+}
+
+function speakPromptsThroughNow(){
+  if (!SPEECH_SUPPORTED) return;
+  const now = Math.max(0, elapsed|0);
+  const sorted = getSortedEnabledPrompts();
+  maybeSpeakPrompts(sorted, now);
+}
+
+function syncPromptSpeechControls(){
+  const cfg = getPromptsSpeechConfig();
+  const builderToggle = byId('prompt-speech-autoplay');
+  const playToggle = byId('prompt-speech-play');
+  const rateEl = byId('prompt-rate');
+  const pitchEl = byId('prompt-pitch');
+  const volumeEl = byId('prompt-volume');
+  const note = byId('prompt-speech-note');
+  const voiceSel = byId('prompt-voice');
+  const testBtn = byId('prompt-speech-test');
+  const stopBtn = byId('prompt-speech-stop');
+  const supported = SPEECH_SUPPORTED;
+
+  if (builderToggle){
+    builderToggle.checked = cfg.autoplay !== false;
+    builderToggle.disabled = !supported;
+  }
+  if (playToggle){
+    playToggle.checked = cfg.autoplay !== false;
+    playToggle.disabled = !supported;
+  }
+  if (rateEl){
+    rateEl.value = cfg.rate;
+    rateEl.disabled = !supported;
+  }
+  if (pitchEl){
+    pitchEl.value = cfg.pitch;
+    pitchEl.disabled = !supported;
+  }
+  if (volumeEl){
+    volumeEl.value = cfg.volume;
+    volumeEl.disabled = !supported;
+  }
+  updatePromptVolumeLabel();
+
+  if (voiceSel){
+    voiceSel.disabled = !supported;
+    const selected = cfg.voice || '';
+    const existing = Array.from(voiceSel.options).some(opt => opt.value === selected);
+    if (selected && !existing){
+      const opt = document.createElement('option');
+      opt.value = selected;
+      opt.dataset.voiceName = cfg.voiceName || selected;
+      opt.dataset.voiceLang = cfg.lang || '';
+      opt.textContent = cfg.voiceName ? `${cfg.voiceName} (unavailable)` : `${selected} (unavailable)`;
+      opt.selected = true;
+      voiceSel.appendChild(opt);
+    } else {
+      voiceSel.value = selected;
+    }
+  }
+
+  if (note){
+    if (!supported){
+      note.textContent = 'Speech synthesis is not supported in this browser.';
+    } else if (!promptSpeechVoices.length){
+      note.textContent = 'Voices are loading from the browser. The default voice will be used if none are available yet.';
+    } else {
+      note.textContent = '';
+    }
+  }
+
+  if (testBtn){
+    testBtn.disabled = !supported;
+  }
+  if (stopBtn){
+    stopBtn.disabled = !supported;
+  }
+}
+
+function populatePromptVoiceSelect(){
+  const select = byId('prompt-voice');
+  if (!select) return;
+  const cfg = getPromptsSpeechConfig();
+  select.innerHTML = '';
+  const defaultOption = document.createElement('option');
+  defaultOption.value = '';
+  defaultOption.textContent = 'Browser default';
+  select.appendChild(defaultOption);
+
+  (promptSpeechVoices || []).forEach(voice => {
+    const opt = document.createElement('option');
+    opt.value = voice.voiceURI || voice.name || '';
+    opt.dataset.voiceName = voice.name || '';
+    opt.dataset.voiceLang = voice.lang || '';
+    opt.textContent = voice.name ? `${voice.name}${voice.lang ? ` (${voice.lang})` : ''}` : (voice.lang || 'Voice');
+    if (voice.default) opt.textContent += ' •';
+    if (cfg.voice && (cfg.voice === opt.value || cfg.voice === voice.name)){
+      opt.selected = true;
+    }
+    select.appendChild(opt);
+  });
+
+  syncPromptSpeechControls();
+}
+
+function refreshPromptSpeechVoices(){
+  if (!SPEECH_SUPPORTED){
+    promptSpeechVoices = [];
+    populatePromptVoiceSelect();
+    return;
+  }
+  try{
+    promptSpeechVoices = window.speechSynthesis.getVoices().slice().sort((a,b)=>{
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return (a.lang || '').localeCompare(b.lang || '');
+    });
+  }catch{
+    promptSpeechVoices = [];
+  }
+  populatePromptVoiceSelect();
+}
+
 function promptsEnabled(){
   return !!(scenario.features && scenario.features.promptsEnabled);
 }
@@ -2654,19 +2972,12 @@ function renderPromptsPanel(){
     return;
   }
 
-  scenario.prompts = ensurePromptListDefaults(scenario.prompts);
-  const enabledPrompts = (scenario.prompts || []).filter(p => p && p.enabled !== false);
-  if (!enabledPrompts.length){
+  const sorted = getSortedEnabledPrompts();
+  if (!sorted.length){
     card.classList.add('hidden');
     host.innerHTML = '';
     return;
   }
-
-  const sorted = enabledPrompts.slice().sort((a,b)=>{
-    const aTime = Math.max(0, Math.round(Number(a.time) || 0));
-    const bTime = Math.max(0, Math.round(Number(b.time) || 0));
-    return aTime - bTime;
-  });
 
   const now = Math.max(0, elapsed|0);
   let activeIndex = -1;
@@ -2726,6 +3037,8 @@ function renderPromptsPanel(){
 
     host.appendChild(row);
   });
+
+  maybeSpeakPrompts(sorted, now);
 
   card.classList.remove('hidden');
 }
@@ -2912,6 +3225,7 @@ function startNextInject(fromId){
 /* ---------------- Engine ---------------- */
 function resetRun(){
   running=false; if(interval){ clearInterval(interval); interval=null; }
+  resetPromptSpeechState({hard:true});
   tLeft=(scenario.timing.minutes||15)*60; elapsed=0;
   vitals={...scenario.vitals}; baseline={...scenario.vitals};
   activeTx={}; decayTx={};
@@ -2941,8 +3255,24 @@ function resetRun(){
   renderAll();
   if (typeof updateAudioButtonStates === 'function') updateAudioButtonStates();
 }
-function start(){ if (running) return; running=true; maybeStartAutoLoop(); interval=setInterval(tick,1000); }
-function pause(){ running=false; if(interval){ clearInterval(interval); interval=null; } }
+function start(){
+  if (running) return;
+  running=true;
+  promptSpeechStarted = true;
+  if (SPEECH_SUPPORTED){
+    try{ window.speechSynthesis.resume(); }catch{}
+  }
+  speakPromptsThroughNow();
+  maybeStartAutoLoop();
+  interval=setInterval(tick,1000);
+}
+function pause(){
+  running=false;
+  if(interval){ clearInterval(interval); interval=null; }
+  if (SPEECH_SUPPORTED){
+    try{ window.speechSynthesis.pause(); }catch{}
+  }
+}
 function tick(){
   if (tLeft<=0){ pause(); endBell(); return; }
   tLeft -= 1; elapsed += 1;
@@ -4419,6 +4749,38 @@ function save(options){
   if (promptsToggle){
     scenario.features.promptsEnabled = !!promptsToggle.checked;
   }
+  const promptsSpeech = getPromptsSpeechConfig();
+  const speechAutoplay = byId('prompt-speech-autoplay');
+  if (speechAutoplay){
+    promptsSpeech.autoplay = !!speechAutoplay.checked;
+  }
+  const playSpeechToggle = byId('prompt-speech-play');
+  if (playSpeechToggle){
+    playSpeechToggle.checked = promptsSpeech.autoplay !== false;
+  }
+  const voiceSelect = byId('prompt-voice');
+  if (voiceSelect){
+    const selectedOption = voiceSelect.options[voiceSelect.selectedIndex];
+    promptsSpeech.voice = voiceSelect.value || '';
+    promptsSpeech.voiceName = selectedOption?.dataset.voiceName || (promptsSpeech.voice ? (selectedOption?.textContent || '') : '');
+    promptsSpeech.lang = selectedOption?.dataset.voiceLang || (promptsSpeech.voice ? promptsSpeech.lang : '');
+  }
+  const rateInput = byId('prompt-rate');
+  if (rateInput){
+    promptsSpeech.rate = clampNumber(rateInput.value, PROMPT_SPEECH_RATE_MIN, PROMPT_SPEECH_RATE_MAX, 1);
+    rateInput.value = promptsSpeech.rate;
+  }
+  const pitchInput = byId('prompt-pitch');
+  if (pitchInput){
+    promptsSpeech.pitch = clampNumber(pitchInput.value, PROMPT_SPEECH_PITCH_MIN, PROMPT_SPEECH_PITCH_MAX, 1);
+    pitchInput.value = promptsSpeech.pitch;
+  }
+  const volumeInput = byId('prompt-volume');
+  if (volumeInput){
+    promptsSpeech.volume = clampNumber(volumeInput.value, PROMPT_SPEECH_VOLUME_MIN, PROMPT_SPEECH_VOLUME_MAX, 1);
+    volumeInput.value = promptsSpeech.volume;
+    updatePromptVolumeLabel();
+  }
   scenario.timing.minutes=parseInt(byId('min')?.value||'15',10);
 
   scenario.vitals.hr=+byId('v-hr').value; scenario.vitals.rr=+byId('v-rr').value;
@@ -4564,6 +4926,7 @@ try{
 function load(){
   const raw=localStorage.getItem('emtScenarioRunnerV27'); if(raw){ try{ scenario=JSON.parse(raw); }catch{} }
   ensureScenarioDefaults();
+  resetPromptSpeechState({hard:true});
   // seed UI
   byId('meta-title').value=scenario.meta.title||'';
   byId('meta-author').value=scenario.meta.author||'';
@@ -4632,6 +4995,7 @@ function load(){
     promptsToggle.checked = promptsEnabled();
   }
   drawPrompts();
+  refreshPromptSpeechVoices();
   renderPromptsPanel();
 
   hydrateBuilderInputs();
@@ -4733,6 +5097,58 @@ safeOn(byId('add-audio'),'click',()=>{
     renderPromptsPanel();
   });
 
+  safeOn(byId('prompt-speech-autoplay'),'change', ()=>{
+    save({skipRedraw:true});
+    syncPromptSpeechControls();
+    const autoplayChecked = !!byId('prompt-speech-autoplay')?.checked;
+    if (!autoplayChecked){
+      stopPromptSpeechPlayback();
+    } else if (promptSpeechStarted){
+      speakPromptsThroughNow();
+    }
+  });
+  safeOn(byId('prompt-voice'),'change', ()=>{
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-rate'),'input', ()=>{
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-pitch'),'input', ()=>{
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-volume'),'input', ()=>{
+    updatePromptVolumeLabel();
+    save({skipRedraw:true});
+  });
+  safeOn(byId('prompt-speech-test'),'click', (event)=>{
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    if (!SPEECH_SUPPORTED){
+      return;
+    }
+    const cfg = getPromptsSpeechConfig();
+    const sample = (scenario.prompts || []).find(p => p && p.enabled !== false);
+    const text = (sample && ((sample.content && sample.content.trim()) || (sample.title && sample.title.trim()))) || 'Prompt speech preview.';
+    speakPromptText(text, cfg, {cancelFirst:true});
+  });
+  safeOn(byId('prompt-speech-play'),'change', ()=>{
+    const playToggle = byId('prompt-speech-play');
+    const builderToggle = byId('prompt-speech-autoplay');
+    if (builderToggle && playToggle){
+      builderToggle.checked = !!playToggle.checked;
+    }
+    save({skipRedraw:true});
+    syncPromptSpeechControls();
+    if (!playToggle?.checked){
+      stopPromptSpeechPlayback();
+    } else if (promptSpeechStarted){
+      speakPromptsThroughNow();
+    }
+  });
+  safeOn(byId('prompt-speech-stop'),'click', (event)=>{
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    stopPromptSpeechPlayback();
+  });
+
   safeOn(byId('add-prompt'),'click', (event)=>{
     if (event && typeof event.preventDefault === 'function') event.preventDefault();
     if (!promptsEnabled()){
@@ -4801,6 +5217,15 @@ safeOn(byId('add-audio'),'click',()=>{
       setScenarioSelectValue(value);
     };
     scenarioSelects().forEach(select => safeOn(select,'change',onScenarioSelectChange));
+  if (SPEECH_SUPPORTED){
+    try{
+      window.speechSynthesis.addEventListener('voiceschanged', refreshPromptSpeechVoices);
+    }catch{
+      window.speechSynthesis.onvoiceschanged = refreshPromptSpeechVoices;
+    }
+  } else {
+    syncPromptSpeechControls();
+  }
 } // <-- close wire()
 
 function ensureScenarioDefaults(){
@@ -4851,6 +5276,7 @@ function ensureScenarioDefaults(){
   });
   scenario.treatments = Array.isArray(scenario.treatments) ? scenario.treatments : [];
   scenario.prompts = ensurePromptListDefaults(scenario.prompts);
+  scenario.promptsSpeech = ensurePromptsSpeechDefaults(scenario.promptsSpeech);
   if (!scenario.apgar) scenario.apgar = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.apgar));
   if (!scenario.apgarNotes) scenario.apgarNotes = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.apgarNotes));
   if (!scenario.nbVitals) scenario.nbVitals = JSON.parse(JSON.stringify(DEFAULT_SCENARIO.nbVitals));

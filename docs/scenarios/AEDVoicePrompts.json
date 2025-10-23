@@ -214,5 +214,11 @@
       "title": "Re-analyze",
       "content": "Stop CPR. Do not touch the patient. Analyzing heart rhythm."
     }
-  ]
+  ],
+  "promptsSpeech": {
+    "autoplay": true,
+    "rate": 1,
+    "pitch": 1,
+    "volume": 1
+  }
 }
