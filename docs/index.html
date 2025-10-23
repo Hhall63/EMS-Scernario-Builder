@@ -5705,6 +5705,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
               <label>Temp <select class="set-skin-temp"><option value="">(no change)</option><option>warm</option><option>hot</option><option>cool</option><option>cold</option></select></label>
               <label>Moist <select class="set-skin-moist"><option value="">(no change)</option><option>normal</option><option>dry</option><option>moist</option><option>clammy</option><option>diaphoretic</option></select></label>
             </div>
+            <div class="divider"></div>
+            <div class="row" style="align-items:flex-start;gap:10px;flex-wrap:wrap">
+              <div style="flex:1 1 260px;display:flex;flex-direction:column;gap:6px">
+                <label>Deactivate other newborn treatments when this activates
+                  <select class="deactivate" multiple size="4"></select>
+                </label>
+                <button class="btn deactivate-clear" type="button" style="align-self:flex-start">Clear selections</button>
+              </div>
+              <div class="muted" style="flex:1 1 200px;min-width:200px">
+                Hold Ctrl (Cmd on Mac) to select multiple. Selected treatments turn off immediately when this one activates.
+              </div>
+            </div>
           </div>
         </div>
       `);
@@ -5742,6 +5754,76 @@ document.addEventListener('DOMContentLoaded', ()=>{
       setSel('set-hr-rate','hrRate'); setSel('set-hr-rhythm','hrRhythm'); setSel('set-hr-quality','hrQuality');
       setSel('set-rr-rate','rrRate'); setSel('set-rr-rhythm','rrRhythm'); setSel('set-rr-quality','rrQuality');
       setSel('set-skin-color','skinColor'); setSel('set-skin-temp','skinTemp'); setSel('set-skin-moist','skinMoist');
+
+      const deactivateSel = q('.deactivate');
+      const deactivateClearBtn = q('.deactivate-clear');
+      if (deactivateSel){
+        const syncDeactivateOptions = () => {
+          const raw = Array.isArray(tx.deactivate) ? tx.deactivate.filter(Boolean) : [];
+          const unique = Array.from(new Set(raw));
+          deactivateSel.innerHTML = '';
+          const choices = (scenario.nbTreatments || [])
+            .filter((other, idx) => other && other.id && idx !== i && other.id !== tx.id);
+          if (!choices.length){
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = 'Add another treatment to enable selection';
+            opt.disabled = true;
+            opt.selected = true;
+            deactivateSel.appendChild(opt);
+            deactivateSel.disabled = true;
+            if (deactivateClearBtn){
+              deactivateClearBtn.disabled = true;
+            }
+            if (raw.length){
+              delete tx.deactivate;
+            }
+            return;
+          }
+          const valid = unique.filter(id => choices.some(other => other.id === id));
+          if (valid.length){
+            tx.deactivate = valid;
+          } else if (raw.length){
+            delete tx.deactivate;
+          }
+          deactivateSel.disabled = false;
+          deactivateSel.size = Math.min(6, Math.max(2, choices.length));
+          choices.forEach(other => {
+            const opt = document.createElement('option');
+            opt.value = other.id;
+            opt.textContent = other.label || other.id;
+            if (valid.includes(other.id)) opt.selected = true;
+            deactivateSel.appendChild(opt);
+          });
+          if (deactivateClearBtn){
+            deactivateClearBtn.disabled = valid.length === 0;
+          }
+        };
+
+        syncDeactivateOptions();
+        deactivateSel.addEventListener('focus', syncDeactivateOptions);
+        deactivateSel.addEventListener('change', () => {
+          const selected = Array.from(deactivateSel.selectedOptions)
+            .map(opt => opt.value)
+            .filter(val => val && val !== tx.id);
+          if (selected.length){
+            tx.deactivate = Array.from(new Set(selected));
+          } else {
+            delete tx.deactivate;
+          }
+          saveSafe();
+          syncDeactivateOptions();
+        });
+        if (deactivateClearBtn){
+          deactivateClearBtn.addEventListener('click', () => {
+            if (!tx.deactivate || !tx.deactivate.length) return;
+            delete tx.deactivate;
+            saveSafe();
+            syncDeactivateOptions();
+            deactivateSel.focus();
+          });
+        }
+      }
     });
   }
 
@@ -5884,6 +5966,56 @@ document.addEventListener('DOMContentLoaded', ()=>{
   let nbVitals = {};
   let nbBaseline = {};
 
+  function ensureNbTxState(id){
+    nbActiveTx[id] = nbActiveTx[id] || {on:false, done:false};
+    return nbActiveTx[id];
+  }
+
+  function setNbTreatmentOn(id, label){
+    const state = ensureNbTxState(id);
+    const wasOn = !!state.on;
+    state.on = true;
+    state.done = false;
+    if (!wasOn){
+      recordTreatmentStart(id, label);
+    }
+    return !wasOn;
+  }
+
+  function setNbTreatmentOff(id){
+    const state = ensureNbTxState(id);
+    const wasOn = !!state.on;
+    state.on = false;
+    if (wasOn){
+      recordTreatmentStop(id);
+    }
+    return wasOn;
+  }
+
+  function deactivateNbTreatmentsFor(sourceId){
+    if (!sourceId) return [];
+    const list = Array.isArray(scenario.nbTreatments) ? scenario.nbTreatments : [];
+    const source = list.find(tx => tx && tx.id === sourceId);
+    if (!source) return [];
+    const targets = Array.isArray(source.deactivate) ? source.deactivate : [];
+    const unique = Array.from(new Set(targets)).filter(id => id && id !== sourceId);
+    const turnedOff = [];
+    unique.forEach(id => {
+      if (setNbTreatmentOff(id)){
+        turnedOff.push(id);
+      }
+    });
+    return turnedOff;
+  }
+
+  function activateNbTreatment(tx){
+    if (!tx || !tx.id) return { activated:false, turnedOff:[] };
+    const label = tx.label || tx.id;
+    const activated = setNbTreatmentOn(tx.id, label);
+    const turnedOff = deactivateNbTreatmentsFor(tx.id);
+    return { activated, turnedOff };
+  }
+
   function resetRunNB(){
     if (!scenario.nbVitals) return;
     nbVitals   = {...scenario.nbVitals};
@@ -6006,16 +6138,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
         applyState(isOnInit);
 
         b.addEventListener('click', ()=>{
-          nbActiveTx[tx.id] = nbActiveTx[tx.id] || {on:false, done:false};
-          if (tx.mode==='toggle'){
-            nbActiveTx[tx.id].on = !nbActiveTx[tx.id].on;
+          let changed = false;
+          let turnedOff = [];
+          if (tx.mode === 'toggle'){
+            if (nbActiveTx[tx.id]?.on){
+              if (setNbTreatmentOff(tx.id)){
+                changed = true;
+              }
+            } else {
+              const result = activateNbTreatment(tx);
+              changed = result.activated || result.turnedOff.length > 0;
+              turnedOff = result.turnedOff;
+            }
+          } else {
+            const result = activateNbTreatment(tx);
+            changed = result.activated || result.turnedOff.length > 0;
+            turnedOff = result.turnedOff;
           }
-          else {
-            nbActiveTx[tx.id].on = true;
-            nbActiveTx[tx.id].done = false;
+          applyState(!!nbActiveTx[tx.id]?.on);
+          if (changed || turnedOff.length){
+            buildNbTxButtons();
           }
-          applyState(!!nbActiveTx[tx.id].on);
           saveSafe();
+          renderAll();
         });
         host.appendChild(b);
       });
